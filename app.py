@@ -15,10 +15,35 @@ load_dotenv()
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.jinja_env.globals.update(now=datetime.utcnow)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev_secret_key")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://postgres:1234@localhost:5432/flc"
-)
+# app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+#     "DATABASE_URL",
+#     "postgresql://postgres:1234@localhost:5432/flc"
+# )
+
+
+db_url = os.getenv("DATABASE_URL")
+
+if db_url is None:
+    raise ValueError("DATABASE_URL is missing — set it first!")
+
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://")
+
+# ✅ Always enable SSL for Supabase
+db_url += "?sslmode=require"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
+
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:aWAnm5MNYj5cO97f@db.znwqduiibnzginieahfs.supabase.co:5432/postgres?sslmode=require'
+
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # --- Logging ---
