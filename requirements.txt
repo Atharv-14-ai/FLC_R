@@ -6,3 +6,4 @@ psycopg2-binary
 gunicorn
 Flask-Login==0.6.2
 python-dotenv==1.0.0
+pytz
