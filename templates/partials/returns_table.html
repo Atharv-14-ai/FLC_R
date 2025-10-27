@@ -1,0 +1,22 @@
+<table class="table table-bordered">
+  <thead class="table-light">
+    <tr>
+      <th>ID</th><th>Dispatch ID</th><th>From</th><th>To</th>
+      <th>FLC Qty</th><th>Component Qty</th><th>Remarks</th><th>Date/Time</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in returns %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.dispatch_id }}</td>
+        <td>{{ r.from_role }}</td>
+        <td>{{ r.to_role }}</td>
+        <td>{{ r.flc_qty }}</td>
+        <td>{{ r.component_qty }}</td>
+        <td>{{ r.remarks }}</td>
+        <td>{{ r.date_time }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

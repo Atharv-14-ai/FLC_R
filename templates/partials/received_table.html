@@ -1,12 +1,12 @@
-<table class="table table-striped">
-  <thead class="table-primary">
+<table class="table table-hover">
+  <thead class="table-success">
     <tr>
       <th>ID</th><th>From</th><th>To</th><th>Component</th>
-      <th>FLC Qty</th><th>Component Qty</th><th>Status</th><th>Date/Time</th>
+      <th>FLC Qty</th><th>Component Qty</th><th>Received On</th>
     </tr>
   </thead>
   <tbody>
-    {% for d in dispatches %}
+    {% for d in received %}
       <tr>
         <td>{{ d.id }}</td>
         <td>{{ d.from_role }}</td>
@@ -14,7 +14,6 @@
         <td>{{ d.component }}</td>
         <td>{{ d.flc_qty }}</td>
         <td>{{ d.component_qty }}</td>
-        <td>{{ d.status }}</td>
         <td>{{ d.date_time }}</td>
       </tr>
     {% endfor %}
