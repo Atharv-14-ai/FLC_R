@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 import logging
+from config import Config
 import pytz
 
 load_dotenv()
@@ -717,5 +718,6 @@ def add_component():
 # ------------------- DB INIT & RUN -------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
