@@ -1,7 +1,8 @@
-# app.py (complete, session + role-based + optimized dashboard)
+
+# app.py (refactored, session + role-based + optimized dashboard)
 from functools import wraps
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
@@ -9,43 +10,50 @@ from flask_bcrypt import Bcrypt
 import logging
 from config import Config
 import pytz
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 load_dotenv()
 
 # --- App config ---
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.jinja_env.globals.update(now=datetime.utcnow)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev_secret_key")
-# app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-#     "DATABASE_URL",
-#     "postgresql://postgres:1234@localhost:5432/flc"
-# )
 
+# Prefer SECRET_KEY from environment, fallback to Config default
+app.config.from_object(Config)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", app.config.get("SECRET_KEY", "dev_secret_key"))
 
-db_url = os.getenv("DATABASE_URL")
+# DATABASE: respectful handling of DATABASE_URL (allow fallback to Config)
+db_url = os.environ.get("DATABASE_URL") or app.config.get("SQLALCHEMY_DATABASE_URI")
 
-if db_url is None:
-    raise ValueError("DATABASE_URL is missing — set it first!")
+if db_url:
+    # convert postgres:// -> postgresql:// for SQLAlchemy if necessary
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://")
+    # only add sslmode=require if not already present and if scheme is postgres/postgresql
+    parsed = urlparse(db_url)
+    if parsed.scheme in ("postgres", "postgresql"):
+        qs = parse_qs(parsed.query)
+        if "sslmode" not in qs:
+            qs["sslmode"] = ["require"]
+            new_query = urlencode({k: v[0] for k, v in qs.items()})
+            parsed = parsed._replace(query=new_query)
+            db_url = urlunparse(parsed)
 
-# ✅ Always enable SSL for Supabase
-db_url += "?sslmode=require"
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+else:
+    # Fall back to Config's SQLite (good for local dev)
+    app.config["SQLALCHEMY_DATABASE_URI"] = app.config.get("SQLALCHEMY_DATABASE_URI", "sqlite:///local_dev.db")
 
-app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+# Engine options & common flags
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
 }
-
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:aWAnm5MNYj5cO97f@db.znwqduiibnzginieahfs.supabase.co:5432/postgres?sslmode=require'
-
-
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Session lifetime (optional)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
 
 # --- Logging ---
 logging.basicConfig(level=logging.DEBUG)
@@ -58,8 +66,8 @@ bcrypt = Bcrypt(app)
 # --- Context processors ---
 @app.context_processor
 def inject_current_user():
+    # expose session to templates as `current_user`
     return {"current_user": session}
-
 
 LOCAL_TZ = pytz.timezone("Asia/Kolkata")
 
@@ -68,14 +76,14 @@ def inject_datetime():
     def localtime(dt):
         if not dt:
             return ""
-        # convert UTC from DB to local timezone
+        # ensure tz-aware (assume UTC for naive datetimes)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=pytz.utc)
         return dt.astimezone(LOCAL_TZ).strftime("%Y-%m-%d %H:%M:%S")
     return dict(localtime=localtime)
 
 
-
+# ---------- MODELS ----------
 class User(db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
@@ -83,6 +91,7 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(30), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class DispatchData(db.Model):
     __tablename__ = "dispatch_data"
@@ -100,10 +109,10 @@ class DispatchData(db.Model):
     remarks = db.Column(db.String(500), nullable=True)
     date_time = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships
     sender = db.relationship("User", foreign_keys=[from_user_id], backref="dispatches_sent", lazy=True)
     receiver = db.relationship("User", foreign_keys=[to_user_id], backref="dispatches_received", lazy=True)
     parent = db.relationship("DispatchData", remote_side=[id], backref="children", lazy=True)
+
 
 class Returned(db.Model):
     __tablename__ = "returned"
@@ -115,20 +124,21 @@ class Returned(db.Model):
     remarks = db.Column(db.String(500), nullable=True)
     date_time = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships
     from_user = db.relationship("User", foreign_keys=[from_user_id], lazy=True)
     to_user = db.relationship("User", foreign_keys=[to_user_id], lazy=True)
     dispatch = db.relationship("DispatchData", foreign_keys=[dispatch_id], lazy=True)
 
 
-# Use UTC for default
 class Component(db.Model):
     __tablename__ = 'components'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Added columns referenced in code
+    is_fixed = db.Column(db.Boolean, default=False, nullable=False)
+    fixed_date = db.Column(db.DateTime, nullable=True)
+
 
 # ---------- AUTH / ROLE DECORATORS ----------
 def login_required(f):
@@ -151,6 +161,7 @@ def role_required(*roles):
         return decorated
     return wrapper
 
+
 # ------------------- AUTH ROUTES -------------------
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -163,14 +174,17 @@ def login():
         password = request.form.get("password", "")
         user = User.query.filter_by(username=username).first()
         if user and bcrypt.check_password_hash(user.password, password):
+            # Set session and mark permanent
             session["user_id"] = user.id
             session["role"] = user.role
             session["username"] = user.username
+            session.permanent = True
             flash("Logged in successfully", "success")
             return redirect(url_for("dashboard"))
         else:
             error = "Invalid username or password"
     return render_template("index.html", error=error)
+
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -188,11 +202,17 @@ def signup():
         else:
             hashed = bcrypt.generate_password_hash(password).decode("utf-8")
             u = User(username=username, password=hashed, role=role)
-            db.session.add(u)
-            db.session.commit()
-            flash("User created — please login.", "success")
-            return redirect(url_for("login"))
+            try:
+                db.session.add(u)
+                db.session.commit()
+                flash("User created — please login.", "success")
+                return redirect(url_for("login"))
+            except Exception as e:
+                db.session.rollback()
+                app.logger.exception("Failed to create user")
+                error = f"DB error: {e}"
     return render_template("signup.html", error=error)
+
 
 @app.route("/logout")
 @login_required
@@ -202,17 +222,14 @@ def logout():
     return redirect(url_for("login"))
 
 
-
 # ------------------- DASHBOARD -------------------
 @app.route('/dashboard')
 @login_required
 def dashboard():
     role = session.get('role')
-    username = session.get('username')
     user_id = session.get('user_id')
 
     if role == 'Supplier':
-        # Dispatches sent to Intermediate and Returns received
         sent_dispatches = DispatchData.query.filter_by(from_role='Supplier').order_by(DispatchData.date_time.desc()).all()
         received_returns = Returned.query.filter_by(to_user_id=user_id).order_by(Returned.date_time.desc()).all()
         return render_template(
@@ -223,7 +240,6 @@ def dashboard():
         )
 
     elif role == 'Intermediate':
-        # Receives from Supplier and Sends to End User
         received_dispatches = DispatchData.query.filter_by(to_role='Intermediate').order_by(DispatchData.date_time.desc()).all()
         sent_dispatches = DispatchData.query.filter_by(from_role='Intermediate').order_by(DispatchData.date_time.desc()).all()
         return render_template(
@@ -234,7 +250,6 @@ def dashboard():
         )
 
     elif role == 'End User':
-        # Receives from Intermediate
         received_dispatches = DispatchData.query.filter_by(to_role='End User').order_by(DispatchData.date_time.desc()).all()
         sent_returns = Returned.query.filter_by(from_user_id=user_id).order_by(Returned.date_time.desc()).all()
         return render_template(
@@ -247,6 +262,8 @@ def dashboard():
     else:
         flash("Invalid role session. Please log in again.", "danger")
         return redirect(url_for('logout'))
+
+
 # ------------------- DISPATCH CREATE -------------------
 @app.route('/dispatch_create', methods=['GET', 'POST'])
 @login_required
@@ -263,18 +280,14 @@ def dispatch_create():
     receiver_candidates = []
     end_users = []
     parent_dispatches = []
-    components = []  # components list for supplier form
+    components = []
 
-    # If Supplier: list Intermediate users to send empties to.
-    # If Intermediate: list potential End Users + list of A->B empty dispatches received (as parents).
     if role == "Supplier":
         receiver_candidates = User.query.filter_by(role="Intermediate").order_by(User.username).all()
-        # fetch components from DB to show in dropdown
         components = Component.query.order_by(Component.name).all()
 
     elif role == "Intermediate":
         end_users = User.query.filter_by(role="End User").order_by(User.username).all()
-        # Candidate parent A->B empty dispatches that are Received and still have empties available
         empties = DispatchData.query.filter_by(to_user_id=current_user_id, dispatch_type="empty", status="Received").all()
         for d in empties:
             consumed = db.session.query(db.func.coalesce(db.func.sum(DispatchData.flc_qty), 0))\
@@ -309,7 +322,6 @@ def dispatch_create():
                     error = "Selected receiver is not an Intermediate user."
                     return render_template("dispatch_create.html", role=role, receiver_candidates=receiver_candidates, components=components, error=error)
 
-                # Validate component exists in DB (recommended)
                 comp_obj = Component.query.filter_by(name=component).first()
                 if not comp_obj:
                     flash("Selected component not found. Please add it first.", "warning")
@@ -341,7 +353,7 @@ def dispatch_create():
 
             elif role == "Intermediate":
                 parent_id_raw = request.form.get("parent_dispatch_id", "").strip()
-                to_user_raw = request.form.get("to_user_id", "").strip()  # can be existing user id or 'other'
+                to_user_raw = request.form.get("to_user_id", "").strip()
 
                 if to_user_raw == "other":
                     end_user_name = request.form.get("end_user_name", "").strip()
@@ -384,7 +396,7 @@ def dispatch_create():
 
                 parent = DispatchData.query.get(parent_id)
                 if not parent or parent.to_user_id != current_user_id or parent.dispatch_type != "empty" or parent.status != "Received":
-                    error = "Selected parent dispatch is not valid (must be an A→B empty dispatch received by you)."
+                    error = "Selected parent dispatch is not valid."
                     return render_template("dispatch_create.html", role=role, end_users=end_users, parent_dispatches=parent_dispatches, error=error)
 
                 consumed_on_parent = db.session.query(db.func.coalesce(db.func.sum(DispatchData.flc_qty), 0))\
@@ -394,7 +406,6 @@ def dispatch_create():
                     error = f"Cannot dispatch {flc_qty} FLCs — only {available} empties available from parent dispatch {parent.id}."
                     return render_template("dispatch_create.html", role=role, end_users=end_users, parent_dispatches=parent_dispatches, error=error)
 
-                # ✅ Mark dispatch to End User as Delivered directly
                 new_dispatch = DispatchData(
                     from_user_id=current_user_id,
                     to_user_id=to_user_id,
@@ -405,7 +416,7 @@ def dispatch_create():
                     component=component,
                     flc_qty=flc_qty,
                     component_qty=component_qty,
-                    status="Delivered",  # CHANGED from Pending → Delivered
+                    status="Delivered",
                     remarks=remarks,
                     date_time=datetime.utcnow()
                 )
@@ -413,7 +424,6 @@ def dispatch_create():
                     db.session.add(new_dispatch)
                     db.session.commit()
 
-                    # ✅ Step 4: Mark component as fixed in Component table (if exists)
                     comp = Component.query.filter_by(name=component).first()
                     if comp:
                         comp.is_fixed = True
@@ -438,13 +448,12 @@ def dispatch_create():
         flash("You don't have permissions to create dispatches.", "warning")
         return redirect(url_for("dashboard"))
 
+
 # ------------------- RECEIVE -------------------
 @app.route("/dispatch_receive", methods=["GET", "POST"])
 @login_required
 @role_required('Supplier', 'Intermediate')
 def dispatch_receive():
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
     role = session.get("role")
     error = None
     if request.method == "POST":
@@ -465,9 +474,9 @@ def dispatch_receive():
             flash(f"Dispatch {dispatch_id} marked Received.", "success")
             return redirect(url_for("dispatch_receive"))
 
-    # show dispatches targeted to user's role
     dispatches = DispatchData.query.filter_by(to_role=role).order_by(DispatchData.date_time.desc()).all()
     return render_template("dispatch_receive.html", dispatches=dispatches, error=error)
+
 
 # ------------------- RETURNS -------------------
 @app.route('/returns', methods=['GET', 'POST'])
@@ -481,7 +490,6 @@ def returns():
         flash("Only suppliers can record returns.", "danger")
         return redirect(url_for('dashboard'))
 
-    # POST: record a return
     if request.method == 'POST':
         try:
             dispatch_id = int(request.form.get('dispatch_id', 0))
@@ -493,7 +501,6 @@ def returns():
                 flash("Invalid dispatch selected.", "danger")
                 return redirect(url_for('returns'))
 
-            # Compute how many FLCs are still available to return (based on that dispatch)
             total_returned = db.session.query(
                 db.func.coalesce(db.func.sum(Returned.flc_qty), 0)
             ).filter_by(dispatch_id=dispatch_id).scalar() or 0
@@ -511,18 +518,16 @@ def returns():
                 flash(f"Cannot return {flc_qty} FLCs — only {remaining} available.", "danger")
                 return redirect(url_for('returns'))
 
-            # Record return
             new_return = Returned(
                 dispatch_id=dispatch.id,
                 from_user_id=current_user.id,
-                to_user_id=dispatch.from_user_id,  # supplier receives back
+                to_user_id=dispatch.from_user_id,
                 flc_qty=flc_qty,
                 remarks=remarks,
                 date_time=datetime.utcnow()
             )
             db.session.add(new_return)
 
-            # Update dispatch status if all FLCs returned
             if flc_qty == remaining:
                 dispatch.status = "Returned"
 
@@ -536,11 +541,10 @@ def returns():
             flash(f"Failed to record return: {str(e)}", "danger")
             return redirect(url_for('returns'))
 
-    # GET: dispatches eligible for return (dispatched to End User and Received)
     dispatches = DispatchData.query.filter_by(to_role="End User", status="Received").order_by(DispatchData.date_time.desc()).all()
-    # All returns (for listing in the template)
     all_returns = Returned.query.order_by(Returned.date_time.desc()).all()
     return render_template('returns.html', dispatches=dispatches, returns=all_returns)
+
 
 # ------------------- REPORTS -------------------
 @app.route("/reports")
@@ -554,7 +558,6 @@ def reports():
     remarks_list = []
 
     if role == "Supplier":
-        # ---------------- Supplier View ----------------
         supplier_dispatches = (
             DispatchData.query
             .filter_by(from_user_id=user_id, dispatch_type="empty")
@@ -563,7 +566,6 @@ def reports():
         )
 
         for d in supplier_dispatches:
-            # Returns related to these dispatches (A→B)
             returned_qty = (
                 db.session.query(db.func.coalesce(db.func.sum(Returned.flc_qty), 0))
                 .filter(Returned.dispatch_id == d.id, Returned.to_user_id == user_id)
@@ -609,8 +611,6 @@ def reports():
                 remarks_list.append({"id": r.id, "type": "Return", "remarks": r.remarks})
 
     elif role == "Intermediate":
-        # ---------------- Intermediate View ----------------
-        # Received from Supplier (A→B)
         received_from_supplier = (
             DispatchData.query
             .filter_by(to_user_id=user_id, dispatch_type="empty")
@@ -618,7 +618,6 @@ def reports():
             .all()
         )
 
-        # Sent to End User (B→C)
         sent_to_enduser = (
             DispatchData.query
             .filter_by(from_user_id=user_id, dispatch_type="filled")
@@ -644,7 +643,6 @@ def reports():
             if d.remarks:
                 remarks_list.append({"id": d.id, "type": "Dispatch", "remarks": d.remarks})
 
-        # Returns sent to Supplier
         returns_to_supplier = (
             Returned.query
             .filter_by(from_user_id=user_id)
@@ -656,7 +654,6 @@ def reports():
                 remarks_list.append({"id": r.id, "type": "Return", "remarks": r.remarks})
 
     else:
-        # ---------------- Admin View ----------------
         all_dispatches = DispatchData.query.order_by(DispatchData.id.desc()).all()
         for d in all_dispatches:
             cycle_report.append({
@@ -680,6 +677,7 @@ def reports():
         role=role
     )
 
+
 # ------------------- ADD COMPONENT (SUPPLIER SIDE) -------------------
 @app.route('/add_component', methods=['GET', 'POST'])
 @login_required
@@ -694,13 +692,11 @@ def add_component():
             flash("Component name is required.", "warning")
             return redirect(url_for('add_component'))
 
-        # Check for duplicate
         existing = Component.query.filter_by(name=name).first()
         if existing:
             flash("This component already exists.", "warning")
             return redirect(url_for('add_component'))
 
-        # Save to DB
         new_comp = Component(name=name, description=description)
         try:
             db.session.add(new_comp)
@@ -711,13 +707,11 @@ def add_component():
             flash(f"Failed to add component: {e}", "danger")
         return redirect(url_for('add_component'))
 
-    # GET: show all components
     components = Component.query.order_by(Component.created_at.desc()).all()
     return render_template('add_component.html', components=components)
 
+
 # ------------------- DB INIT & RUN -------------------
 if __name__ == "__main__":
+    # Local debug only; production will use gunicorn (Procfile)
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
-
-
-
