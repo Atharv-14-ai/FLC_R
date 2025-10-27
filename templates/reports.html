@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Reports - FLC Tracking</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css"/>
+  <style>
+    body {
+      background-color: #f8fafc;
+    }
+    h3, h5 {
+      font-weight: 600;
+    }
+    .card {
+      border-radius: 12px;
+    }
+    .badge {
+      font-size: 0.85rem;
+      padding: 0.4em 0.6em;
+    }
+  </style>
+</head>
+<body>
+
+  {% include 'navbar.html' %}
+
+  <div class="container mt-5 mb-5">
+    <h3 class="text-primary mb-4">📊 Reports Dashboard ({{ role }})</h3>
+
+    <!-- Transaction History -->
+    <div class="card shadow-sm p-3 mb-4">
+      <h5 class="mb-3">🚚 Transaction History</h5>
+      <div class="table-responsive">
+        <table id="reportTable" class="table table-striped table-hover align-middle">
+          <thead class="table-primary">
+            <tr>
+              <th>ID</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Component</th>
+              <th>FLC Qty</th>
+              <th>Returned</th>
+              <th>Pending</th>
+              <th>Status</th>
+              <th>Date/Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in cycle_report %}
+            <tr>
+              <td>{{ d.id }}</td>
+              <td>{{ d.from_user }}</td>
+              <td>{{ d.to_user if d.to_user else d.to_role }}</td>
+              <td>{{ d.component }}</td>
+              <td>{{ d.flc_qty }}</td>
+              <td>{{ d.returned_qty }}</td>
+              <td>{{ d.pending_qty }}</td>
+              <td>
+                {% if d.status == 'Received' %}
+                  <span class="badge bg-success">Received</span>
+                {% elif d.status == 'Delivered' %}
+                  <span class="badge bg-info text-dark">Delivered to C</span>
+                {% elif d.status == 'Pending' %}
+                  <span class="badge bg-warning text-dark">Pending</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ d.status }}</span>
+                {% endif %}
+              </td>
+              <td>{{ d.date_time.strftime('%d-%m-%Y %H:%M') if d.date_time else '-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if role == 'Supplier' %}
+    <!-- Pending Returns -->
+    <div class="card shadow-sm p-3 mb-4">
+      <h5>📦 Pending Returns</h5>
+      <ul class="list-group">
+        {% if pending_returns %}
+          {% for p in pending_returns %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>ID {{ p.id }}</strong> → {{ p.to_user }}
+              <br><small>FLC: {{ p.flc_qty }}, Returned: {{ p.returned_qty }}</small>
+            </div>
+            <span class="badge bg-warning text-dark">Remaining: {{ p.pending_qty }}</span>
+          </li>
+          {% endfor %}
+        {% else %}
+          <li class="list-group-item text-muted text-center">No pending returns</li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Remarks -->
+    <div class="card shadow-sm p-3">
+      <h5>🧾 Remarks</h5>
+      {% if remarks %}
+      <ul class="list-group">
+        {% for r in remarks %}
+        <li class="list-group-item">
+          <strong>{{ r.type }} #{{ r.id }}:</strong> {{ r.remarks }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted">No remarks recorded.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+  <script>
+  $(document).ready(function(){
+    $('#reportTable').DataTable({
+      order:[[0,'desc']],
+      pageLength:10,
+      language: {
+        search: "_INPUT_",
+        searchPlaceholder: "Search transactions..."
+      }
+    });
+  });
+  </script>
+
+</body>
+</html>

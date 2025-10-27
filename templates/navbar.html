@@ -1,0 +1,62 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">FLC Tracking</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.path == url_for('dashboard') %}active{% endif %}" 
+             href="{{ url_for('dashboard') }}">Dashboard</a>
+        </li>
+
+        {% if session.get('role') == 'Supplier' %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for('dispatch_create') %}active{% endif %}" 
+               href="{{ url_for('dispatch_create') }}">Dispatch to B</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for('add_component') %}active{% endif %}" 
+               href="{{ url_for('add_component') }}">Add Component</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for('returns') %}active{% endif %}" 
+               href="{{ url_for('returns') }}">Record Return</a>
+          </li>
+
+        {% elif session.get('role') == 'Intermediate' %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for('dispatch_receive') %}active{% endif %}" 
+               href="{{ url_for('dispatch_receive') }}">Receive from A</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for('dispatch_create') %}active{% endif %}" 
+               href="{{ url_for('dispatch_create') }}">Dispatch to C</a>
+          </li>
+        {% endif %}
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.path == url_for('reports') %}active{% endif %}" 
+             href="{{ url_for('reports') }}">Reports</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Padding so navbar doesn't overlap content -->
+<style>
+  body {
+    padding-top: 70px;
+  }
+</style>

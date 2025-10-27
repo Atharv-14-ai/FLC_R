@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow p-4">
+    <h3 class="mb-3 text-primary">Create Dispatch</h3>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat,msg in messages %}
+          <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    {% if role == 'Supplier' %}
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label">Send empties to (Intermediate)</label>
+          <select name="to_user_id" class="form-select" required>
+            <option value="">-- Select Intermediate --</option>
+            {% for u in receiver_candidates %}
+              <option value="{{ u.id }}">{{ u.username }} ({{ u.role }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Component</label>
+          <select name="component" class="form-select" required>
+            <option value="">-- Select Component --</option>
+            {% for comp in components %}
+              <option value="{{ comp.name }}">{{ comp.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">If your component is missing, use “Add Component” first.</div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">FLC Qty (empties)</label>
+            <input type="number" name="flc_qty" class="form-control" min="1" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Component Qty (pieces)</label>
+            <input type="number" name="component_qty" class="form-control" min="1" required>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Remarks</label>
+          <textarea name="remarks" class="form-control"></textarea>
+        </div>
+
+        <div class="d-grid">
+          <button type="submit" class="btn btn-success">Create Empty Dispatch</button>
+        </div>
+      </form>
+
+{% elif role == 'Intermediate' %}
+<!-- Intermediate form -->
+<form method="POST">
+
+  <div class="mb-3">
+    <label class="form-label fw-semibold">Select parent empty dispatch (A→B)</label>
+    <select name="parent_dispatch_id" id="parent_dispatch_id" class="form-select" required>
+      <option value="">-- Select a received empty dispatch --</option>
+      {% for parent, available in parent_dispatches %}
+        <option value="{{ parent.id }}" data-component="{{ parent.component }}" data-flc="{{ available }}">
+          #{{ parent.id }} — {{ parent.component }} (Available: {{ available }} FLCs)
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label fw-semibold">Send filled to (End User)</label>
+    <select name="to_user_id" id="to_user_id" class="form-select" onchange="toggleEndUser()" required>
+      <option value="">-- Select End User --</option>
+      {% for eu in end_users %}
+        <option value="{{ eu.id }}">{{ eu.username }}</option>
+      {% endfor %}
+      <option value="other">Other (Create new End User)</option>
+    </select>
+  </div>
+
+  <div id="end_user_block" class="mb-3" style="display:none;">
+    <label class="form-label fw-semibold">New End User Name</label>
+    <input type="text" class="form-control" name="end_user_name" placeholder="Enter End User name">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label fw-semibold">Component (auto-filled from parent)</label>
+    <input type="text" name="component" id="component" class="form-control" placeholder="Component" required>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label fw-semibold">FLC Qty (filled)</label>
+      <input type="number" name="flc_qty" id="flc_qty" class="form-control" min="1" required>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label fw-semibold">Component Qty</label>
+      <input type="number" name="component_qty" class="form-control" min="1" required>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label fw-semibold">Remarks</label>
+    <textarea class="form-control" name="remarks" rows="2"></textarea>
+  </div>
+
+  <div class="d-grid">
+    <button type="submit" class="btn btn-success">Create Filled Dispatch</button>
+  </div>
+</form>
+
+<script>
+function toggleEndUser(){
+  const sel = document.getElementById('to_user_id').value;
+  document.getElementById('end_user_block').style.display = (sel === 'other') ? 'block' : 'none';
+}
+
+// Auto-fill component from parent dispatch
+const parentSelect = document.getElementById('parent_dispatch_id');
+const componentInput = document.getElementById('component');
+const flcInput = document.getElementById('flc_qty');
+
+parentSelect.addEventListener('change', function(){
+  const selected = parentSelect.options[parentSelect.selectedIndex];
+  componentInput.value = selected.getAttribute('data-component') || '';
+  const maxFlc = parseInt(selected.getAttribute('data-flc')) || 0;
+  flcInput.max = maxFlc;  // restrict input to available FLCs
+});
+</script>
+
+
+    {% else %}
+      <div class="alert alert-secondary">You do not have permission to create dispatches.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

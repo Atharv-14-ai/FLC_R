@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow p-4">
+    <h3 class="mb-3 text-primary">Add New Component</h3>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="mb-3">
+        <label class="form-label">Component Name</label>
+        <input type="text" name="name" class="form-control" placeholder="Enter component name" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Description (optional)</label>
+        <input type="text" name="description" class="form-control" placeholder="Short description">
+      </div>
+
+      <div class="d-grid">
+        <button type="submit" class="btn btn-success">Add Component</button>
+      </div>
+    </form>
+
+    <hr class="my-4">
+
+    <h4 class="mb-3 text-primary">Existing Components</h4>
+
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Component Name</th>
+          <th>Description</th>
+          <th>Created At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for component in components %}
+        <tr>
+          <td>{{ component.id }}</td>
+          <td>{{ component.name }}</td>
+          <td>{{ component.description or '-' }}</td>
+          <td>{{ component.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
