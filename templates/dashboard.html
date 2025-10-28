@@ -1,139 +1,274 @@
-{% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - {{ role }}</title>
+    
+    <!-- DataTables + Bootstrap -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
 
-{% block content %}
-<div class="container-fluid py-4">
+    <style>
+        body {
+            background: #f5f8fd;
+            font-family: "Segoe UI", sans-serif;
+        }
 
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="page-title">Dashboard</h2>
-        <span class="role-badge">{{ current_user.role | upper }}</span>
+        h2, h4 {
+            font-weight: 600;
+        }
+
+        .dashboard-header {
+            background: linear-gradient(135deg, #0d6efd, #3c8dff);
+            padding: 18px;
+            border-radius: 12px;
+            color: #fff;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+            animation: fadeInDown 0.4s ease;
+        }
+
+        .table-section {
+            background: #fff;
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 35px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+            animation: fadeInUp 0.4s ease;
+        }
+
+        table.dataTable thead th {
+            background-color: #e8efff;
+            font-weight: 600;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+    </style>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+
+{% include "navbar.html" %}
+
+<div class="container mt-4">
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <h2>{{ role }} Dashboard</h2>
+        <p class="mb-0">Monitor movements of FLCs in real-time</p>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    📦
-                </div>
-                <div class="stat-info">
-                    <h5>Total Dispatches</h5>
-                    <h2>{{ total_dispatches }}</h2>
-                </div>
-            </div>
+    <!-- Supplier View -->
+    {% if role == 'Supplier' %}
+        <div class="table-section">
+            <h4>Sent Dispatches</h4>
+            <table id="sentDispatches" class="display table table-striped">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>To</th>
+                    <th>Component</th>
+                    <th>FLC Qty</th>
+                    <th>Component Qty</th>
+                    <th>Status</th>
+                    <th>Date/Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for d in sent_dispatches %}
+                <tr>
+                    <td>{{ d.id }}</td>
+                    <td>{{ d.receiver.username if d.receiver else 'N/A' }}</td>
+                    <td>{{ d.component }}</td>
+                    <td>{{ d.flc_qty }}</td>
+                    <td>{{ d.component_qty }}</td>
+                    <td>{{ d.status }}</td>
+                    <td>{{ d.date_time.strftime("%Y-%m-%d %H:%M") }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
 
-        {% if current_user.role == "A" or current_user.role == "B" %}
-        <div class="col-md-4">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    ✅
-                </div>
-                <div class="stat-info">
-                    <h5>Confirmed Receipts</h5>
-                    <h2>{{ confirmed_receipts }}</h2>
-                </div>
-            </div>
+        <div class="table-section">
+            <h4>Returns Received</h4>
+            <table id="receivedReturns" class="display table table-striped">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>From</th>
+                    <th>FLC Qty</th>
+                    <th>Remarks</th>
+                    <th>Date/Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for r in received_returns %}
+                <tr>
+                    <td>{{ r.id }}</td>
+                    <td>{{ r.from_user.username if r.from_user else 'N/A' }}</td>
+                    <td>{{ r.flc_qty }}</td>
+                    <td>{{ r.remarks }}</td>
+                    <td>{{ r.date_time.strftime("%Y-%m-%d %H:%M") }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% endif %}
 
-        {% if current_user.role == "A" %}
-        <div class="col-md-4">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    🔁
-                </div>
-                <div class="stat-info">
-                    <h5>Pending Returns</h5>
-                    <h2>{{ pending_returns }}</h2>
-                </div>
-            </div>
+    <!-- Intermediate View -->
+    {% elif role == 'Intermediate' %}
+        <div class="table-section">
+            <h4>Received Dispatches</h4>
+            <table id="receivedDispatches" class="display table table-striped">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>From</th>
+                    <th>Component</th>
+                    <th>FLC Qty</th>
+                    <th>Component Qty</th>
+                    <th>Status</th>
+                    <th>Date/Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for d in received_dispatches %}
+                <tr>
+                    <td>{{ d.id }}</td>
+                    <td>{{ d.sender.username if d.sender else 'N/A' }}</td>
+                    <td>{{ d.component }}</td>
+                    <td>{{ d.flc_qty }}</td>
+                    <td>{{ d.component_qty }}</td>
+                    <td>{{ d.status }}</td>
+                    <td>{{ d.date_time.strftime("%Y-%m-%d %H:%M") }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% endif %}
-    </div>
 
-    <!-- Quick Actions -->
-    <div class="mt-5">
-        <h4 class="section-title">Quick Actions</h4>
-        <div class="d-flex gap-3 flex-wrap mt-3">
-
-            {% if current_user.role == "A" or current_user.role == "B" %}
-            <a href="{{ url_for('create_dispatch') }}" class="btn action-btn">➕ Create Dispatch</a>
-            <a href="{{ url_for('receive_dispatch') }}" class="btn action-btn">📥 Receive Dispatch</a>
-            {% endif %}
-
-            {% if current_user.role == "A" %}
-            <a href="{{ url_for('return_entry') }}" class="btn action-btn">🔙 Return Entry</a>
-            {% endif %}
-
-            <a href="{{ url_for('reports') }}" class="btn action-btn">📊 View Reports</a>
+        <div class="table-section">
+            <h4>Sent Dispatches</h4>
+            <table id="sentDispatches" class="display table table-striped">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>To</th>
+                    <th>Component</th>
+                    <th>FLC Qty</th>
+                    <th>Component Qty</th>
+                    <th>Status</th>
+                    <th>Date/Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for d in sent_dispatches %}
+                <tr>
+                    <td>{{ d.id }}</td>
+                    <td>{{ d.receiver.username if d.receiver else 'N/A' }}</td>
+                    <td>{{ d.component }}</td>
+                    <td>{{ d.flc_qty }}</td>
+                    <td>{{ d.component_qty }}</td>
+                    <td>{{ d.status }}</td>
+                    <td>{{ d.date_time.strftime("%Y-%m-%d %H:%M") }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </div>
 
+    <!-- End User -->
+    {% elif role == 'End User' %}
+        <div class="table-section">
+            <h4>Received Dispatches</h4>
+            <table id="receivedDispatches" class="display table table-striped">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>From</th>
+                    <th>Component</th>
+                    <th>FLC Qty</th>
+                    <th>Component Qty</th>
+                    <th>Status</th>
+                    <th>Date/Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for d in received_dispatches %}
+                <tr>
+                    <td>{{ d.id }}</td>
+                    <td>{{ d.sender.username if d.sender else 'N/A' }}</td>
+                    <td>{{ d.component }}</td>
+                    <td>{{ d.flc_qty }}</td>
+                    <td>{{ d.component_qty }}</td>
+                    <td>{{ d.status }}</td>
+                    <td>{{ d.date_time.strftime("%Y-%m-%d %H:%M") }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-section">
+            <h4>Sent Returns</h4>
+            <table id="sentReturns" class="display table table-striped">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>To</th>
+                    <th>FLC Qty</th>
+                    <th>Remarks</th>
+                    <th>Date/Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for r in sent_returns %}
+                <tr>
+                    <td>{{ r.id }}</td>
+                    <td>{{ r.to_user.username if r.to_user else 'N/A' }}</td>
+                    <td>{{ r.flc_qty }}</td>
+                    <td>{{ r.remarks }}</td>
+                    <td>{{ r.date_time.strftime("%Y-%m-%d %H:%M") }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
 </div>
 
-<style>
-    .page-title {
-        font-weight: 700;
-        color: #1e3557;
-    }
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('table.display').DataTable({
+        "pageLength": 10,
+        "lengthChange": false
+    });
+});
+</script>
 
-    .role-badge {
-        background: #004aad;
-        color: #fff;
-        padding: 6px 14px;
-        border-radius: 6px;
-        font-size: 14px;
-        letter-spacing: 0.5px;
-    }
-
-    .stat-card {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        transition: transform .2s;
-        border-left: 6px solid #004aad;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-5px);
-    }
-
-    .stat-icon {
-        font-size: 40px;
-        margin-right: 16px;
-    }
-
-    .stat-info h2 {
-        font-weight: bold;
-        margin: 0;
-        color: #004aad;
-    }
-
-    .section-title {
-        color: #1e3557;
-        font-weight: 600;
-        margin-bottom: 10px;
-    }
-
-    .action-btn {
-        background: #004aad;
-        color: #fff;
-        font-weight: 500;
-        padding: 10px 20px;
-        border-radius: 8px;
-        transition: 0.2s;
-    }
-
-    .action-btn:hover {
-        background: #062c6e;
-        transform: translateY(-3px);
-        color: #fff;
-    }
-</style>
-
-{% endblock %}
+</body>
+</html>
