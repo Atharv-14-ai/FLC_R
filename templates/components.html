@@ -1,0 +1,52 @@
+{% extends "base.html" %} {% block content %}
+<div class="container mt-4">
+  <h2 class="text-center text-primary">Manage Components</h2>
+  <hr />
+
+  <div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('add_component') }}" class="btn btn-success">
+      + Add Component
+    </a>
+  </div>
+
+  {% if components|length == 0 %}
+  <div class="alert alert-warning">No components added yet!</div>
+  {% else %}
+  <table class="table table-bordered table-striped text-center">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>Component Name</th>
+        <th>Description</th>
+        <th>Created Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for comp in components %}
+      <tr>
+        <td>{{ comp.id }}</td>
+        <td>{{ comp.name }}</td>
+        <td>{{ comp.description }}</td>
+        <td>{{ comp.created_at.strftime("%d-%m-%Y") }}</td>
+        <td>
+          <a
+            href="{{ url_for('edit_component', id=comp.id) }}"
+            class="btn btn-warning btn-sm"
+            >Edit</a
+          >
+
+          <a
+            href="{{ url_for('delete_component', id=comp.id) }}"
+            onclick="return confirm('Are you sure?')"
+            class="btn btn-danger btn-sm"
+            >Delete</a
+          >
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}
