@@ -4,9 +4,10 @@ SQLAlchemy==2.0.44
 Flask-Bcrypt
 Flask-Login
 python-dotenv
-psycopg[binary,pool]
+psycopg2-binary
 
 gunicorn
+
 
 
 
