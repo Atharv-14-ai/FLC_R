@@ -1,0 +1,3 @@
+SECRET_KEY=our-super-secure-random-key
+
+DATABASE_URL=postgresql://postgres:1234@localhost:5432/flc

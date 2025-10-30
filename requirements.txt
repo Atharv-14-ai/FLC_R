@@ -1,9 +1,8 @@
-Flask
-Flask-SQLAlchemy
-Flask-Bcrypt
-Flask-Login
-psycopg2-binary
-gunicorn
-Flask-Login==0.6.2
-python-dotenv==1.0.0
-pytz
+Flask==3.1.2
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.44
+Flask-Bcrypt==1.0.1
+Flask-Login==0.6.3
+python-dotenv==1.0.1
+psycopg2-binary==2.9.9
+gunicorn==22.0.0
