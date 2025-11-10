@@ -150,6 +150,8 @@
         <a href="{{ url_for('manage_users') }}" class="sidebar-btn"
           >👥 Manage Users</a
         >
+        <a href="{{ url_for('manage_end_users') }}" class="sidebar-btn">👥 Manage End Users</a>
+
         <a href="{{ url_for('returns') }}" class="sidebar-btn">🔁 Returns</a>
         {% elif session['role'] == 'Intermediate' %}
         <a href="{{ url_for('dispatch_create') }}" class="sidebar-btn"

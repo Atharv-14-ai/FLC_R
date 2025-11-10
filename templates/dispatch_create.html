@@ -1,11 +1,12 @@
-{% extends "base.html" %} {% block content %}
+{% extends "base.html" %}
+{% block content %}
 <div class="container mt-4">
   <h3>Create Dispatch</h3>
   <hr />
 
   <form method="POST">
-    <!-- ✅ Supplier (A → B) -->
     {% if role == "Supplier" %}
+    <!-- Supplier (A → B) -->
     <div class="mb-3">
       <label class="form-label">Select Intermediate</label>
       <select name="to_user" class="form-select" required>
@@ -16,99 +17,240 @@
       </select>
     </div>
 
-    <!-- ✅ Supplier selects component -->
-    <div class="mb-3">
-      <label class="form-label">Select Component</label>
-      <select name="component_id" class="form-select" required>
-        {% for comp in components %}
-        <option value="{{ comp.id }}">{{ comp.name }}</option>
-        {% endfor %}
-      </select>
+    <div id="flc-section">
+      <div class="flc-item border rounded p-3 mb-3">
+        <div class="row g-2">
+          <div class="col-md-3">
+            <label class="form-label">Select Component</label>
+            <select name="component_id[]" class="form-select component-select" required>
+              <option value="">-- Select Component --</option>
+              {% for comp in components %}
+              <option value="{{ comp.id }}" data-stock="{{ comp.flc_stock }}">{{ comp.name }} (Available: {{ comp.flc_stock }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">FLC Qty</label>
+            <input type="number" name="flc_qty[]" class="form-control flc-input" min="1" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Component Qty</label>
+            <input type="number" name="component_qty[]" class="form-control" min="1" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Remarks</label>
+            <input type="text" name="remarks[]" class="form-control">
+          </div>
+          <div class="col-md-1 d-flex align-items-end">
+            <button type="button" class="btn btn-danger remove-flc w-100">×</button>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <button type="button" id="add-flc" class="btn btn-outline-primary mb-3">+ Add Another FLC</button>
     {% endif %}
 
-    <!-- ✅ Intermediate (B → C) -->
     {% if role == "Intermediate" %}
     <div class="mb-3">
-      <label class="form-label">Select Parent Dispatch</label>
-      <select
-        name="parent_dispatch_id"
-        class="form-select"
-        required
-        onchange="updateComponentName(this)"
-      >
-        <option value="">-- Select Dispatch --</option>
-        {% for d, avail in parent_dispatches %}
-        <option value="{{ d.id }}" data-component="{{ d.component }}">
-          Dispatch #{{ d.id }} - {{ d.component }} | Available: {{ avail }}
-        </option>
-        {% endfor %}
-      </select>
+      <h5>Select Available Dispatches (from Supplier)</h5>
     </div>
 
-    <!-- ✅ Component Name Auto-filled & Locked -->
-    <div class="mb-3">
-      <label class="form-label">Component</label>
-      <input
-        type="text"
-        id="component_name"
-        class="form-control"
-        readonly
-        required
-      />
+    <div id="dispatch-section">
+      <div class="dispatch-block border rounded p-3 mb-4">
+        <div class="mb-3">
+          <label class="form-label">Select Parent Dispatch</label>
+          <select name="parent_dispatch_id[]" class="form-select parent-select" required>
+            <option value="">-- Select Dispatch --</option>
+            {% for d, avail in parent_dispatches %}
+            <option value="{{ d.id }}" data-component="{{ d.component }}" data-available="{{ avail }}">
+              Dispatch #{{ d.id }} - {{ d.component }} | Avail: {{ avail }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="child-section">
+          <div class="enduser-item border rounded p-2 mb-2">
+            <div class="row g-2">
+              <div class="col-md-3">
+                <label class="form-label">End User</label>
+                <select class="form-select end-user-select" required>
+                  <option value="">-- Select End User --</option>
+                  {% for e in users %}
+                  <option value="{{ e.id }}">{{ e.name }}{% if e.location %} ({{ e.location }}){% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">FLC Qty</label>
+                <input type="number" class="form-control flc-input" min="1" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Component Qty</label>
+                <input type="number" class="form-control comp-input" min="1" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Remarks</label>
+                <input type="text" class="form-control remark-input">
+              </div>
+              <div class="col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-danger remove-enduser w-100">×</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-outline-secondary add-enduser">+ Add End User</button>
+        <hr />
+        <button type="button" class="btn btn-danger remove-dispatch">Remove Dispatch</button>
+      </div>
     </div>
 
-    <!-- ✅ Intermediate selects ONLY End User -->
-    <div class="mb-3">
-      <label class="form-label">Send To End User (C)</label>
-      <select name="to_user" class="form-select" required>
-        <option value="">-- Select End User --</option>
-        {% for u in users %}
-        <option value="{{ u.id }}">{{ u.username }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    <button type="button" id="add-dispatch" class="btn btn-outline-primary mb-3">+ Add Another Dispatch</button>
     {% endif %}
 
-    <!-- ✅ Common Input Fields -->
-    <div class="mb-3">
-      <label class="form-label">FLC Quantity</label>
-      <input
-        type="number"
-        name="flc_qty"
-        class="form-control"
-        required
-        min="1"
-      />
-    </div>
+    <!-- hidden JSON field used for Intermediate submissions -->
+    <input type="hidden" name="dispatch_data" id="dispatch_data">
 
-    <div class="mb-3">
-      <label class="form-label">Component Quantity</label>
-      <input
-        type="number"
-        name="component_qty"
-        class="form-control"
-        required
-        min="1"
-      />
+    <div class="mt-3">
+      <button class="btn btn-primary" type="submit" onclick="prepareData()">Create Dispatch</button>
+      <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Cancel</a>
     </div>
-
-    <div class="mb-3">
-      <label class="form-label">Remarks</label>
-      <textarea class="form-control" name="remarks"></textarea>
-    </div>
-
-    <button class="btn btn-primary" type="submit">Create Dispatch</button>
-    <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Cancel</a>
   </form>
 </div>
 
 <script>
-  function updateComponentName(select) {
-    let compName =
-      select.options[select.selectedIndex].getAttribute("data-component");
-    document.getElementById("component_name").value = compName || "";
-  }
-</script>
+document.addEventListener('DOMContentLoaded', () => {
 
+  // ---------- SUPPLIER SECTION ----------
+  const addFlcBtn = document.getElementById('add-flc');
+  if (addFlcBtn) {
+    addFlcBtn.addEventListener('click', () => {
+      const section = document.getElementById('flc-section');
+      const clone = section.children[0].cloneNode(true);
+      // reset values
+      clone.querySelectorAll('input').forEach(i => i.value = '');
+      clone.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+      section.appendChild(clone);
+    });
+  }
+
+  // Remove FLC row (Supplier)
+  document.addEventListener('click', e => {
+    if (e.target.classList.contains('remove-flc')) {
+      const block = e.target.closest('.flc-item');
+      const section = document.getElementById('flc-section');
+      if (block && section && section.children.length > 1) block.remove();
+    }
+  });
+
+  // When Supplier selects component, set max on FLC input
+  document.addEventListener('change', e => {
+    if (e.target.classList.contains('component-select')) {
+      const sel = e.target;
+      const stock = parseInt(sel.options[sel.selectedIndex].dataset.stock || 0);
+      const row = sel.closest('.flc-item');
+      const qtyInput = row.querySelector('.flc-input');
+      if (qtyInput) {
+        qtyInput.max = stock;
+        qtyInput.placeholder = `Max: ${stock}`;
+      }
+    }
+  });
+
+  // ---------- INTERMEDIATE SECTION ----------
+  const dispatchSection = document.getElementById('dispatch-section');
+
+  if (dispatchSection) {
+    // Add new parent dispatch block
+    const addDispatchBtn = document.getElementById('add-dispatch');
+    if (addDispatchBtn) {
+      addDispatchBtn.addEventListener('click', () => {
+        const clone = dispatchSection.children[0].cloneNode(true);
+        clone.querySelectorAll('input').forEach(i => i.value = '');
+        clone.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+        dispatchSection.appendChild(clone);
+      });
+    }
+
+    // nested controls for end users
+    document.addEventListener('click', e => {
+      // Add End User inside that dispatch block
+      if (e.target.classList.contains('add-enduser')) {
+        const parentBlock = e.target.closest('.dispatch-block');
+        const section = parentBlock.querySelector('.child-section');
+        const clone = section.children[0].cloneNode(true);
+        clone.querySelectorAll('input').forEach(i => i.value = '');
+        clone.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+        section.appendChild(clone);
+      }
+
+      // Remove End User
+      if (e.target.classList.contains('remove-enduser')) {
+        const item = e.target.closest('.enduser-item');
+        const section = e.target.closest('.child-section');
+        if (section && section.children.length > 1) item.remove();
+      }
+
+      // Remove Dispatch block
+      if (e.target.classList.contains('remove-dispatch')) {
+        const block = e.target.closest('.dispatch-block');
+        if (dispatchSection.children.length > 1) block.remove();
+      }
+    });
+
+    // auto-fill component when parent dispatch changes (showing component name in child rows for clarity)
+    document.addEventListener('change', e => {
+      if (e.target.classList.contains('parent-select')) {
+        const opt = e.target.options[e.target.selectedIndex];
+        const compName = opt ? opt.dataset.component || '' : '';
+        const available = opt ? parseInt(opt.dataset.available || 0) : 0;
+        const parentBlock = e.target.closest('.dispatch-block');
+        // set placeholder / helper on each FLC input in this block
+        parentBlock.querySelectorAll('.flc-input').forEach(inp => {
+          inp.max = available;
+          inp.placeholder = `Max: ${available}`;
+        });
+      }
+    });
+  }
+
+});
+
+// prepare nested JSON for intermediate submission
+function prepareData() {
+  // If role is intermediate, pack dispatch blocks into JSON
+  const dispatchBlocks = document.querySelectorAll('.dispatch-block');
+  const data = {};
+
+  dispatchBlocks.forEach(block => {
+    const parentSelect = block.querySelector('.parent-select');
+    if (!parentSelect) return;
+    const parentId = parentSelect.value;
+    if (!parentId) return;
+
+    const entries = [];
+    block.querySelectorAll('.enduser-item').forEach(item => {
+      const endUserId = item.querySelector('.end-user-select')?.value;
+      const flcQty = item.querySelector('.flc-input')?.value;
+      const compQty = item.querySelector('.comp-input')?.value;
+      const remarks = item.querySelector('.remark-input')?.value;
+      if (endUserId && flcQty && compQty) {
+        entries.push({
+          end_user_id: endUserId,
+          flc_qty: flcQty,
+          component_qty: compQty,
+          remarks: remarks || ''
+        });
+      }
+    });
+
+    if (entries.length) data[parentId] = entries;
+  });
+
+  const hidden = document.getElementById('dispatch_data');
+  if (hidden) hidden.value = JSON.stringify(data);
+}
+</script>
 {% endblock %}

@@ -13,9 +13,9 @@
         </div>
         <div class="col-md-6">
           <label class="form-label">Role</label>
-          <select name="role" class="form-select" required>
+          <select name="role" class="form-select" >
             <option value="Intermediate" {% if user.role == 'Intermediate' %}selected{% endif %}>Intermediate</option>
-            <option value="End User" {% if user.role == 'End User' %}selected{% endif %}>End User</option>
+            <!-- <option value="End User" {% if user.role == 'End User' %}selected{% endif %}>End User</option> -->
           </select>
         </div>
 
