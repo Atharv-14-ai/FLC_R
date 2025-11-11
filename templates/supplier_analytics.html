@@ -10,7 +10,12 @@
       <div class="d-flex justify-content-between align-items-center">
         <div>
           <h2 class="mb-1">FLC Analytics Dashboard</h2>
-          <p class="text-muted">Component-wise FLC tracking and performance metrics</p>
+          <p class="text-muted">Real-time FLC tracking and performance metrics</p>
+        </div>
+        <div>
+          <button class="btn btn-outline-primary" onclick="refreshAllData()">
+            <i class="bi bi-arrow-clockwise me-2"></i>Refresh Data
+          </button>
         </div>
       </div>
     </div>
@@ -22,6 +27,9 @@
       <div class="card shadow-sm">
         <div class="card-body py-3">
           <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-primary" onclick="toggleSection('inventory-section')">
+              <i class="bi bi-box-seam me-2"></i>Live Inventory
+            </button>
             <button class="btn btn-outline-primary" onclick="toggleSection('kpi-section')">
               <i class="bi bi-speedometer2 me-2"></i>KPIs
             </button>
@@ -46,6 +54,147 @@
             <button class="btn btn-outline-secondary" onclick="collapseAllSections()">
               <i class="bi bi-arrows-collapse me-2"></i>Collapse All
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real-time Inventory Section -->
+  <div class="row mb-4 section-card" id="inventory-section">
+    <div class="col-12">
+      <div class="card shadow-sm border-primary">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="bi bi-box-seam me-2"></i>Real-time Supplier Inventory
+          </h5>
+          <div>
+            <span class="badge bg-light text-primary me-2" id="inventory-timestamp">
+              Live
+            </span>
+            <button class="btn btn-sm btn-light" onclick="toggleSection('inventory-section')">
+              <i class="bi bi-dash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <!-- Quick Stats -->
+          <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+              <div class="card bg-primary text-white h-100">
+                <div class="card-body text-center">
+                  <h2 id="total-available-flcs">{{ realtime_inventory.total_available }}</h2>
+                  <small>Available FLCs</small>
+                  <div class="mt-2">
+                    <small>Ready for dispatch</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-3">
+              <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                  <h2>{{ realtime_inventory.returned_today }}</h2>
+                  <small>Returns Today</small>
+                  <div class="mt-2">
+                    <small>FLCs returned</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-3">
+              <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                  <h2>{{ realtime_inventory.dispatched_today }}</h2>
+                  <small>Dispatched Today</small>
+                  <div class="mt-2">
+                    <small>FLCs sent out</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-3">
+              <div class="card bg-warning text-white h-100">
+                <div class="card-body text-center">
+                  <h2>{{ realtime_inventory.components|length }}</h2>
+                  <small>Active Components</small>
+                  <div class="mt-2">
+                    <small>In inventory</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Component-wise Breakdown -->
+          <h6 class="mb-3">
+            <i class="bi bi-list-ul me-2"></i>Component-wise Inventory Breakdown
+          </h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>Component</th>
+                  <th class="text-center">Baseline Stock</th>
+                  <th class="text-center">Total Dispatched</th>
+                  <th class="text-center">Total Returned</th>
+                  <th class="text-center">Available Now</th>
+                  <th class="text-center">Today's Activity</th>
+                  <th class="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for comp in realtime_inventory.components %}
+                <tr>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="avatar-sm bg-light rounded me-2">
+                        <i class="bi bi-gear text-muted p-1"></i>
+                      </div>
+                      <strong>{{ comp.name }}</strong>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-secondary">{{ comp.baseline_stock }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="text-danger">-{{ comp.dispatched }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="text-success">+{{ comp.returned }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge {% if comp.available > 10 %}bg-success{% elif comp.available > 0 %}bg-warning{% else %}bg-danger{% endif %} fs-6">
+                      {{ comp.available }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <small>
+                      <span class="text-info">-{{ comp.dispatched_today }}</span> /
+                      <span class="text-success">+{{ comp.returned_today }}</span>
+                    </small>
+                  </td>
+                  <td class="text-center">
+                    {% if comp.available > 10 %}
+                    <span class="badge bg-success">Well Stocked</span>
+                    {% elif comp.available > 0 %}
+                    <span class="badge bg-warning">Low Stock</span>
+                    {% else %}
+                    <span class="badge bg-danger">Out of Stock</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+                {% if realtime_inventory.components|length == 0 %}
+                <tr>
+                  <td colspan="7" class="text-center text-muted py-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    No inventory data available
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -471,275 +620,273 @@
   </div>
 
   <!-- User Distribution Section -->
-  <!-- User Distribution Section - IMPROVED -->
-<div class="row mb-4 section-card" id="users-section">
+  <div class="row mb-4 section-card" id="users-section">
     <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-people me-2 text-primary"></i>Current FLC Distribution by User
-                </h5>
-                <div>
-                    <span class="badge bg-primary me-2">Total: {{ total_flcs_in_system }} FLCs</span>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleSection('users-section')">
-                        <i class="bi bi-dash"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <!-- Summary Cards -->
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <div class="card bg-primary bg-opacity-10 border-primary">
-                            <div class="card-body text-center">
-                                <h3 class="text-primary">{{ total_flcs_at_supplier }}</h3>
-                                <small class="text-muted">FLCs at Supplier</small>
-                                <div class="mt-2">
-                                    <small>Available for dispatch</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card bg-warning bg-opacity-10 border-warning">
-                            <div class="card-body text-center">
-                                <h3 class="text-warning">{{ total_flcs_with_intermediates }}</h3>
-                                <small class="text-muted">FLCs with Intermediates</small>
-                                <div class="mt-2">
-                                    <small>In transit/processing</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card bg-success bg-opacity-10 border-success">
-                            <div class="card-body text-center">
-                                <h3 class="text-success">{{ total_flcs_with_endusers }}</h3>
-                                <small class="text-muted">FLCs with End Users</small>
-                                <div class="mt-2">
-                                    <small>Currently in use</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tabs -->
-                <div class="mb-4">
-                    <div class="btn-group w-100">
-                        <button class="btn btn-outline-primary active" onclick="showUserType('all')">
-                            <i class="bi bi-people-fill me-2"></i>All Users ({{ total_users }})
-                        </button>
-                        <button class="btn btn-outline-primary" onclick="showUserType('intermediates')">
-                            <i class="bi bi-truck me-2"></i>Intermediates ({{ intermediate_users|length }})
-                        </button>
-                        <button class="btn btn-outline-primary" onclick="showUserType('end_users')">
-                            <i class="bi bi-person-check me-2"></i>End Users ({{ end_users|length }})
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Intermediates with FLCs -->
-                <div class="user-type-section" id="intermediates-section">
-                    <h6 class="text-warning mb-3">
-                        <i class="bi bi-truck me-2"></i>Intermediates Holding FLCs ({{ intermediate_users|length }})
-                    </h6>
-                    
-                    {% if intermediate_users %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-warning">
-                                <tr>
-                                    <th>Intermediate User</th>
-                                    <th class="text-center">Total FLCs</th>
-                                    <th class="text-center">Components</th>
-                                    <th class="text-center">Avg Holding Time</th>
-                                    <th class="text-center">Status</th>
-                                    <th class="text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in intermediate_users %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-sm bg-warning bg-opacity-10 rounded me-3">
-                                                <i class="bi bi-person-circle text-warning p-2"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="mb-0">{{ user.username }}</h6>
-                                                <small class="text-muted">Registered: {{ user.created_at.strftime('%Y-%m-%d') }}</small>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge bg-warning fs-6">{{ user.total_flcs }} FLCs</span>
-                                    </td>
-                                    <td class="text-center">
-                                        {% for component in user.components %}
-                                        <span class="badge bg-light text-dark mb-1 d-block">
-                                            {{ component.name }}: {{ component.flcs }} FLCs
-                                        </span>
-                                        {% endfor %}
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="text-muted">{{ user.avg_holding_days }} days</span>
-                                    </td>
-                                    <td class="text-center">
-                                        {% if user.total_flcs > 20 %}
-                                        <span class="badge bg-success">High Capacity</span>
-                                        {% elif user.total_flcs > 10 %}
-                                        <span class="badge bg-warning">Medium</span>
-                                        {% else %}
-                                        <span class="badge bg-info">Low</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        <button class="btn btn-sm btn-outline-primary" 
-                                                onclick="viewUserDetails({{ user.id }}, 'intermediate')">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-info-circle text-muted" style="font-size: 48px;"></i>
-                        <p class="text-muted mt-2">No FLCs currently with intermediates</p>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- End Users with FLCs -->
-                <div class="user-type-section" id="end_users-section">
-                    <h6 class="text-success mb-3">
-                        <i class="bi bi-person-check me-2"></i>End Users Holding FLCs ({{ end_users|length }})
-                    </h6>
-                    
-                    {% if end_users %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-success">
-                                <tr>
-                                    <th>End User</th>
-                                    <th class="text-center">Location</th>
-                                    <th class="text-center">Total FLCs</th>
-                                    <th class="text-center">Components</th>
-                                    <th class="text-center">Holding Since</th>
-                                    <th class="text-center">Return Due</th>
-                                    <th class="text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in end_users %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-sm bg-success bg-opacity-10 rounded me-3">
-                                                <i class="bi bi-person-check text-success p-2"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="mb-0">{{ user.name }}</h6>
-                                                <small class="text-muted">Customer</small>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge bg-light text-dark">{{ user.location or 'N/A' }}</span>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge bg-success fs-6">{{ user.total_flcs }} FLCs</span>
-                                    </td>
-                                    <td class="text-center">
-                                        {% for component in user.components %}
-                                        <span class="badge bg-light text-dark mb-1 d-block">
-                                            {{ component.name }}: {{ component.flcs }} FLCs
-                                        </span>
-                                        {% endfor %}
-                                    </td>
-                                    <td class="text-center">
-                                        <small class="text-muted">{{ user.holding_since }}</small>
-                                    </td>
-                                    <td class="text-center">
-                                        {% if user.days_remaining < 0 %}
-                                        <span class="badge bg-danger">Overdue</span>
-                                        {% elif user.days_remaining < 7 %}
-                                        <span class="badge bg-warning">{{ user.days_remaining }} days</span>
-                                        {% else %}
-                                        <span class="badge bg-success">{{ user.days_remaining }} days</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        <button class="btn btn-sm btn-outline-success me-1" 
-                                                onclick="viewUserDetails({{ user.id }}, 'end_user')">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-warning" 
-                                                onclick="initiateReturn({{ user.id }})">
-                                            <i class="bi bi-arrow-return-left"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-info-circle text-muted" style="font-size: 48px;"></i>
-                        <p class="text-muted mt-2">No FLCs currently with end users</p>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- FLC Distribution Chart -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header bg-white">
-                                <h6 class="mb-0">
-                                    <i class="bi bi-pie-chart me-2 text-primary"></i>
-                                    FLC Distribution Overview
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <canvas id="flcDistributionChart" height="250"></canvas>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-bottom">
-                                            <span>Supplier Stock</span>
-                                            <span class="badge bg-primary">{{ total_flcs_at_supplier }} FLCs</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-bottom">
-                                            <span>With Intermediates</span>
-                                            <span class="badge bg-warning">{{ total_flcs_with_intermediates }} FLCs</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-bottom">
-                                            <span>With End Users</span>
-                                            <span class="badge bg-success">{{ total_flcs_with_endusers }} FLCs</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between align-items-center p-2 border-top">
-                                            <strong>Total in System</strong>
-                                            <strong class="text-primary">{{ total_flcs_in_system }} FLCs</strong>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="bi bi-people me-2 text-primary"></i>Current FLC Distribution by User
+          </h5>
+          <div>
+            <span class="badge bg-primary me-2">Total: {{ total_flcs_in_system }} FLCs</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleSection('users-section')">
+              <i class="bi bi-dash"></i>
+            </button>
+          </div>
         </div>
+        <div class="card-body">
+          <!-- Summary Cards -->
+          <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+              <div class="card bg-primary bg-opacity-10 border-primary h-100">
+                <div class="card-body text-center">
+                  <h3 class="text-primary">{{ total_flcs_at_supplier }}</h3>
+                  <small class="text-muted">FLCs at Supplier</small>
+                  <div class="mt-2">
+                    <small>Available for dispatch</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <div class="card bg-warning bg-opacity-10 border-warning h-100">
+                <div class="card-body text-center">
+                  <h3 class="text-warning">{{ total_flcs_with_intermediates }}</h3>
+                  <small class="text-muted">FLCs with Intermediates</small>
+                  <div class="mt-2">
+                    <small>In transit/processing</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <div class="card bg-success bg-opacity-10 border-success h-100">
+                <div class="card-body text-center">
+                  <h3 class="text-success">{{ total_flcs_with_endusers }}</h3>
+                  <small class="text-muted">FLCs with End Users</small>
+                  <div class="mt-2">
+                    <small>Currently in use</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="mb-4">
+            <div class="btn-group w-100">
+              <button class="btn btn-outline-primary active" onclick="showUserType('all')">
+                <i class="bi bi-people-fill me-2"></i>All Users ({{ total_users }})
+              </button>
+              <button class="btn btn-outline-primary" onclick="showUserType('intermediates')">
+                <i class="bi bi-truck me-2"></i>Intermediates ({{ intermediate_users|length }})
+              </button>
+              <button class="btn btn-outline-primary" onclick="showUserType('end_users')">
+                <i class="bi bi-person-check me-2"></i>End Users ({{ end_users|length }})
+              </button>
+            </div>
+          </div>
+
+          <!-- Intermediates with FLCs -->
+          <div class="user-type-section" id="intermediates-section">
+            <h6 class="text-warning mb-3">
+              <i class="bi bi-truck me-2"></i>Intermediates Holding FLCs ({{ intermediate_users|length }})
+            </h6>
+            
+            {% if intermediate_users %}
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead class="table-warning">
+                  <tr>
+                    <th>Intermediate User</th>
+                    <th class="text-center">Total FLCs</th>
+                    <th class="text-center">Components</th>
+                    <th class="text-center">Avg Holding Time</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in intermediate_users %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-warning bg-opacity-10 rounded me-3">
+                          <i class="bi bi-person-circle text-warning p-2"></i>
+                        </div>
+                        <div>
+                          <h6 class="mb-0">{{ user.username }}</h6>
+                          <small class="text-muted">Registered: {{ user.created_at.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-warning fs-6">{{ user.total_flcs }} FLCs</span>
+                    </td>
+                    <td class="text-center">
+                      {% for component in user.components %}
+                      <span class="badge bg-light text-dark mb-1 d-block">
+                        {{ component.name }}: {{ component.flcs }} FLCs
+                      </span>
+                      {% endfor %}
+                    </td>
+                    <td class="text-center">
+                      <span class="text-muted">{{ user.avg_holding_days }} days</span>
+                    </td>
+                    <td class="text-center">
+                      {% if user.total_flcs > 20 %}
+                      <span class="badge bg-success">High Capacity</span>
+                      {% elif user.total_flcs > 10 %}
+                      <span class="badge bg-warning">Medium</span>
+                      {% else %}
+                      <span class="badge bg-info">Low</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      <button class="btn btn-sm btn-outline-primary" 
+                              onclick="viewUserDetails({{ user.id }}, 'intermediate')">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+              <i class="bi bi-info-circle text-muted" style="font-size: 48px;"></i>
+              <p class="text-muted mt-2">No FLCs currently with intermediates</p>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- End Users with FLCs -->
+          <div class="user-type-section" id="end_users-section">
+            <h6 class="text-success mb-3">
+              <i class="bi bi-person-check me-2"></i>End Users Holding FLCs ({{ end_users|length }})
+            </h6>
+            
+            {% if end_users %}
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead class="table-success">
+                  <tr>
+                    <th>End User</th>
+                    <th class="text-center">Location</th>
+                    <th class="text-center">Total FLCs</th>
+                    <th class="text-center">Components</th>
+                    <th class="text-center">Holding Since</th>
+                    <th class="text-center">Return Due</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in end_users %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-success bg-opacity-10 rounded me-3">
+                          <i class="bi bi-person-check text-success p-2"></i>
+                        </div>
+                        <div>
+                          <h6 class="mb-0">{{ user.name }}</h6>
+                          <small class="text-muted">Customer</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-light text-dark">{{ user.location or 'N/A' }}</span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-success fs-6">{{ user.total_flcs }} FLCs</span>
+                    </td>
+                    <td class="text-center">
+                      {% for component in user.components %}
+                      <span class="badge bg-light text-dark mb-1 d-block">
+                        {{ component.name }}: {{ component.flcs }} FLCs
+                      </span>
+                      {% endfor %}
+                    </td>
+                    <td class="text-center">
+                      <small class="text-muted">{{ user.holding_since }}</small>
+                    </td>
+                    <td class="text-center">
+                      {% if user.days_remaining < 0 %}
+                      <span class="badge bg-danger">Overdue</span>
+                      {% elif user.days_remaining < 7 %}
+                      <span class="badge bg-warning">{{ user.days_remaining }} days</span>
+                      {% else %}
+                      <span class="badge bg-success">{{ user.days_remaining }} days</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      <button class="btn btn-sm btn-outline-success me-1" 
+                              onclick="viewUserDetails({{ user.id }}, 'end_user')">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-warning" 
+                              onclick="initiateReturn({{ user.id }})">
+                        <i class="bi bi-arrow-return-left"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+              <i class="bi bi-info-circle text-muted" style="font-size: 48px;"></i>
+              <p class="text-muted mt-2">No FLCs currently with end users</p>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- FLC Distribution Chart -->
+          <div class="row mt-4">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header bg-white">
+                  <h6 class="mb-0">
+                    <i class="bi bi-pie-chart me-2 text-primary"></i>
+                    FLC Distribution Overview
+                  </h6>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-8">
+                      <canvas id="flcDistributionChart" height="250"></canvas>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-bottom">
+                        <span>Supplier Stock</span>
+                        <span class="badge bg-primary">{{ total_flcs_at_supplier }} FLCs</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-bottom">
+                        <span>With Intermediates</span>
+                        <span class="badge bg-warning">{{ total_flcs_with_intermediates }} FLCs</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-bottom">
+                        <span>With End Users</span>
+                        <span class="badge bg-success">{{ total_flcs_with_endusers }} FLCs</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center p-2 border-top">
+                        <strong>Total in System</strong>
+                        <strong class="text-primary">{{ total_flcs_in_system }} FLCs</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-</div>
+  </div>
 </div>
 
-<!-- Chart.js -->
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -803,8 +950,41 @@
     }
   }
 
+  // Auto-refresh inventory data
+  function refreshInventoryData() {
+    fetch('/api/realtime/inventory')
+        .then(response => response.json())
+        .then(data => {
+            // Update the total available FLCs
+            document.getElementById('total-available-flcs').textContent = data.total_available;
+            
+            // Update timestamp
+            const now = new Date();
+            document.getElementById('inventory-timestamp').textContent = 
+                `Updated: ${now.toLocaleTimeString()}`;
+        })
+        .catch(error => console.error('Error refreshing inventory:', error));
+  }
+
+  // Refresh all data
+  function refreshAllData() {
+    refreshInventoryData();
+    // Add other refresh functions here if needed
+    location.reload(); // Simple full refresh for now
+  }
+
+  // Refresh every 30 seconds
+  setInterval(refreshInventoryData, 30000);
+
+  // Also refresh when page becomes visible
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+      refreshInventoryData();
+    }
+  });
+
   // Chart Functions
-  let activityChart, componentChart;
+  let activityChart, componentChart, flcDistributionChart;
 
   function initActivityChart() {
     const ctx = document.getElementById('activityChart');
@@ -928,52 +1108,48 @@
     });
   }
 
-  function initGauges() {
-    // Efficiency Gauge
-    const effCtx = document.getElementById('efficiencyGauge');
-    if (effCtx) {
-      new Chart(effCtx, {
-        type: 'doughnut',
-        data: {
-          datasets: [{
-            data: [{{ stats.efficiency }}, Math.max(0, 100 - {{ stats.efficiency }})],
-            backgroundColor: ['#198754', '#e9ecef'],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          cutout: '75%',
-          responsive: false,
-          plugins: { 
-            legend: { display: false },
-            tooltip: { enabled: false }
+  function initFlcDistributionChart() {
+    const ctx = document.getElementById('flcDistributionChart');
+    if (!ctx) return;
+    
+    // Destroy existing chart if it exists
+    if (flcDistributionChart) {
+      flcDistributionChart.destroy();
+    }
+    
+    flcDistributionChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Supplier Stock', 'With Intermediates', 'With End Users'],
+        datasets: [{
+          data: [
+            {{ total_flcs_at_supplier }},
+            {{ total_flcs_with_intermediates }},
+            {{ total_flcs_with_endusers }}
+          ],
+          backgroundColor: ['#0d6efd', '#ffc107', '#198754'],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.parsed || 0;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = Math.round((value / total) * 100);
+                return `${label}: ${value} FLCs (${percentage}%)`;
+              }
+            }
           }
         }
-      });
-    }
-
-    // Return Gauge
-    const retCtx = document.getElementById('returnGauge');
-    if (retCtx) {
-      new Chart(retCtx, {
-        type: 'doughnut',
-        data: {
-          datasets: [{
-            data: [{{ stats.return_rate }}, Math.max(0, 100 - {{ stats.return_rate }})],
-            backgroundColor: ['#dc3545', '#e9ecef'],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          cutout: '75%',
-          responsive: false,
-          plugins: { 
-            legend: { display: false },
-            tooltip: { enabled: false }
-          }
-        }
-      });
-    }
+      }
+    });
   }
 
   function changeChartView(type) {
@@ -989,6 +1165,17 @@
     activityChart.update();
   }
 
+  // User detail functions
+  function viewUserDetails(userId, userType) {
+    alert(`View details for ${userType} ID: ${userId}`);
+    // Implement modal or page navigation here
+  }
+
+  function initiateReturn(userId) {
+    alert(`Initiate return for end user ID: ${userId}`);
+    // Implement return initiation modal here
+  }
+
   // Initialize on page load
   document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing charts...');
@@ -996,13 +1183,16 @@
     // Initialize charts
     initActivityChart();
     initComponentChart();
-    initGauges();
+    initFlcDistributionChart();
     
     // Show all sections by default
     expandAllSections();
     
     // Show all user types by default
     showUserType('all');
+    
+    // Initial inventory data refresh
+    refreshInventoryData();
     
     console.log('Charts initialized successfully');
   });
@@ -1011,65 +1201,8 @@
   window.addEventListener('resize', function() {
     if (activityChart) activityChart.resize();
     if (componentChart) componentChart.resize();
+    if (flcDistributionChart) flcDistributionChart.resize();
   });
-
-
-
-// Add these functions
-function viewUserDetails(userId, userType) {
-    // Show detailed modal with user's FLC history
-    fetch(`/api/user/${userType}/${userId}/details`)
-        .then(response => response.json())
-        .then(data => showUserDetailsModal(data))
-        .catch(error => console.error('Error:', error));
-}
-
-function initiateReturn(userId) {
-    // Open return initiation modal
-    const modal = new bootstrap.Modal(document.getElementById('returnModal'));
-    document.getElementById('returnEndUserId').value = userId;
-    modal.show();
-}
-
-function initFlcDistributionChart() {
-    const ctx = document.getElementById('flcDistributionChart');
-    if (!ctx) return;
-    
-    const chart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Supplier Stock', 'With Intermediates', 'With End Users'],
-            datasets: [{
-                data: [
-                    {{ total_flcs_at_supplier }},
-                    {{ total_flcs_with_intermediates }},
-                    {{ total_flcs_with_endusers }}
-                ],
-                backgroundColor: ['#0d6efd', '#ffc107', '#198754'],
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'bottom' },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = Math.round((value / total) * 100);
-                            return `${label}: ${value} FLCs (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
 </script>
 
 <style>
@@ -1121,6 +1254,15 @@ function initFlcDistributionChart() {
 .table th {
   border-top: none;
   font-weight: 600;
+}
+
+/* Inventory section specific styles */
+#inventory-section .card {
+  border: 2px solid #0d6efd;
+}
+
+#inventory-section .card-header {
+  background: linear-gradient(135deg, #0d6efd, #0a58ca);
 }
 </style>
 {% endblock %}

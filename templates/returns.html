@@ -1,115 +1,301 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Return Entry - FLC Tracking</title>
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}"
-    />
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
     {% include 'navbar.html' %}
 
-    <div class="container mt-5">
-      <h3 class="text-primary mb-4">Return Entry</h3>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h3 class="text-primary mb-4">
+                    <i class="bi bi-arrow-return-left me-2"></i>Return Entry
+                </h3>
 
-      {% with messages = get_flashed_messages(with_categories=true) %} {% if
-      messages %} {% for category, message in messages %}
-      <div
-        class="alert alert-{{ category }} alert-dismissible fade show"
-        role="alert"
-      >
-        {{ message }}
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="alert"
-          aria-label="Close"
-        ></button>
-      </div>
-      {% endfor %} {% endif %} {% endwith %}
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                {% endwith %}
 
-      <div class="card shadow p-4 mb-4">
-        <form method="POST" action="{{ url_for('returns') }}">
-          <div class="mb-3">
-            <label class="form-label fw-bold">Select Dispatch</label>
-              <select name="dispatch_id" class="form-select" required>
-    <option value="" disabled selected>-- Select a Dispatch --</option>
-    {% for d in dispatches %}
-      <option value="{{ d.id }}" {% if d.remaining == 0 %}disabled{% endif %}>
-        ID {{ d.id }} — {{ d.component or 'N/A' }} | To: {{
-        d.receiver_name if d.receiver_name else d.to_role }}
-        | Sent: {{ d.flc_qty }} | Returned: {{ d.total_returned }} | Remaining: {{ d.remaining }}
-        {% if d.remaining == 0 %} (Completed){% endif %}
-      </option>
-    {% endfor %}
-  </select>
-          </div>
+                <!-- Return Form -->
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-arrow-return-left me-2"></i>Record New Return
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('returns') }}">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Select Dispatch to Return From</label>
+                                    <select name="dispatch_id" class="form-select" required id="dispatchSelect" onchange="updateForm()">
+                                        <option value="" disabled selected>-- Select a Dispatch --</option>
+                                        {% for d in dispatches %}
+                                        <option value="{{ d.id }}" 
+                                                data-end-user-id="{{ d.to_end_user_id }}"
+                                                data-end-user-name="{{ d.end_user_name }}"
+                                                data-component="{{ d.component }}"
+                                                data-remaining="{{ d.remaining }}"
+                                                data-total-returned="{{ d.total_returned }}"
+                                                data-original-qty="{{ d.flc_qty }}">
+                                            Dispatch #{{ d.id }} — {{ d.component }} 
+                                            | To: {{ d.end_user_name }}{% if d.end_user_location %} ({{ d.end_user_location }}){% endif %}
+                                            | Sent: {{ d.flc_qty }} | Returned: {{ d.total_returned }} | Remaining: {{ d.remaining }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">
+                                        Only shows dispatches with remaining FLCs to return
+                                    </div>
+                                </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-bold">FLC Quantity Returned</label>
-            <input
-              type="number"
-              name="flc_qty"
-              class="form-control"
-              min="1"
-              required
-            />
-          </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Returning From End User</label>
+                                    <input type="text" class="form-control" id="endUserDisplay" readonly>
+                                    <input type="hidden" name="from_end_user_id" id="endUserInput">
+                                    <small class="text-muted">Automatically set based on selected dispatch</small>
+                                </div>
+                            </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-bold">Remarks (optional)</label>
-            <input type="text" name="remarks" class="form-control" />
-          </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">FLC Quantity to Return</label>
+                                    <input type="number" name="flc_qty" class="form-control" 
+                                           id="flcQtyInput" min="1" required 
+                                           placeholder="Enter quantity to return" />
+                                    <div class="form-text">
+                                        Maximum available: <span id="maxQtyDisplay" class="fw-bold text-danger">0</span> FLCs
+                                    </div>
+                                </div>
 
-          <button type="submit" class="btn btn-primary w-100">
-            Record Return
-          </button>
-        </form>
-      </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Remarks (Optional)</label>
+                                    <input type="text" name="remarks" class="form-control" 
+                                           placeholder="e.g., Damaged containers, routine return, etc." />
+                                </div>
+                            </div>
 
-      <h4 class="text-light mt-5">All Returns</h4>
-      <div class="table-responsive">
-        <table class="table table-bordered table-hover table-striped">
-          <thead class="table-primary">
-            <tr>
-              <th>ID</th>
-              <th>Dispatch ID</th>
-              <th>FLC Qty</th>
-              <th>Remarks</th>
-              <th>Date/Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in returns %}
-            <tr>
-              <td>{{ r.id }}</td>
-              <td>{{ r.dispatch_id }}</td>
-              <td>{{ r.flc_qty }}</td>
-              <td>{{ r.remarks }}</td>
-              <td>
-                {{ r.date_time.strftime('%Y-%m-%d %H:%M:%S') if r.date_time else
-                '' }}
-              </td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="5" class="text-center text-muted">
-                No returns recorded yet.
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+                            <!-- Dispatch Summary -->
+                            <div class="alert alert-info" id="dispatchSummary" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Component:</strong> <span id="summaryComponent">-</span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>End User:</strong> <span id="summaryEndUser">-</span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Remaining:</strong> <span id="summaryRemaining" class="fw-bold">-</span> FLCs
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2">
+                                <i class="bi bi-check-circle me-2"></i>Record Return
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Available Dispatches for Return -->
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="bi bi-list-ul me-2"></i>Available Dispatches for Return
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if dispatches %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-warning">
+                                    <tr>
+                                        <th>Dispatch ID</th>
+                                        <th>Component</th>
+                                        <th>End User</th>
+                                        <th class="text-center">Original Qty</th>
+                                        <th class="text-center">Already Returned</th>
+                                        <th class="text-center">Remaining</th>
+                                        <th>Dispatch Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for d in dispatches %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-primary">#{{ d.id }}</span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ d.component }}</strong>
+                                        </td>
+                                        <td>
+                                            {{ d.end_user_name }}
+                                            {% if d.end_user_location %}
+                                                <br><small class="text-muted">{{ d.end_user_location }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">{{ d.flc_qty }}</td>
+                                        <td class="text-center">
+                                            <span class="text-success">{{ d.total_returned }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-danger">{{ d.remaining }}</span>
+                                        </td>
+                                        <td>{{ d.date_time.strftime('%Y-%m-%d') if d.date_time else '' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-check-circle me-2" style="font-size: 48px;"></i>
+                            <p class="mt-2">No dispatches available for return. All FLCs have been returned.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Recent Returns Table -->
+                <div class="card shadow">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock-history me-2"></i>Recent Returns (Last 50)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Return ID</th>
+                                        <th>Dispatch ID</th>
+                                        <th>Component</th>
+                                        <th>From End User</th>
+                                        <th class="text-center">FLC Qty</th>
+                                        <th>Remarks</th>
+                                        <th>Date/Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for r in returns %}
+                                    <tr>
+                                        <td>{{ r.id }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">#{{ r.dispatch_id }}</span>
+                                        </td>
+                                        <td>{{ r.component }}</td>
+                                        <td>
+                                            {% if r.from_end_user %}
+                                                <span class="text-success">{{ r.from_end_user.name }}</span>
+                                                {% if r.from_end_user.location %}
+                                                    <br><small class="text-muted">{{ r.from_end_user.location }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Not specified</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <strong class="text-primary">{{ r.flc_qty }}</strong>
+                                        </td>
+                                        <td>{{ r.remarks or '-' }}</td>
+                                        <td>{{ r.date_time.strftime('%Y-%m-%d %H:%M') if r.date_time else '' }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="bi bi-inbox me-2"></i>No returns recorded yet.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  </body>
+    <script>
+        function updateForm() {
+            const dispatchSelect = document.getElementById('dispatchSelect');
+            const endUserDisplay = document.getElementById('endUserDisplay');
+            const endUserInput = document.getElementById('endUserInput');
+            const flcQtyInput = document.getElementById('flcQtyInput');
+            const maxQtyDisplay = document.getElementById('maxQtyDisplay');
+            const dispatchSummary = document.getElementById('dispatchSummary');
+            
+            const selectedOption = dispatchSelect.options[dispatchSelect.selectedIndex];
+            
+            if (selectedOption.value) {
+                // Get data from selected option
+                const endUserId = selectedOption.getAttribute('data-end-user-id');
+                const endUserName = selectedOption.getAttribute('data-end-user-name');
+                const component = selectedOption.getAttribute('data-component');
+                const remaining = selectedOption.getAttribute('data-remaining');
+                
+                // Set end user (readonly)
+                endUserDisplay.value = endUserName;
+                endUserInput.value = endUserId;
+                
+                // Update quantity input
+                flcQtyInput.max = remaining;
+                flcQtyInput.placeholder = `Max: ${remaining}`;
+                maxQtyDisplay.textContent = remaining;
+                
+                // Show dispatch summary
+                document.getElementById('summaryComponent').textContent = component;
+                document.getElementById('summaryEndUser').textContent = endUserName;
+                document.getElementById('summaryRemaining').textContent = remaining;
+                dispatchSummary.style.display = 'block';
+                
+            } else {
+                // Reset form
+                endUserDisplay.value = '';
+                endUserInput.value = '';
+                flcQtyInput.value = '';
+                flcQtyInput.max = '';
+                flcQtyInput.placeholder = 'Enter quantity to return';
+                maxQtyDisplay.textContent = '0';
+                dispatchSummary.style.display = 'none';
+            }
+        }
+
+        // Validate quantity input
+        document.addEventListener('DOMContentLoaded', function() {
+            const flcQtyInput = document.getElementById('flcQtyInput');
+            const dispatchSelect = document.getElementById('dispatchSelect');
+            
+            flcQtyInput.addEventListener('input', function() {
+                const maxQty = parseInt(this.max) || 0;
+                const currentQty = parseInt(this.value) || 0;
+                
+                if (currentQty > maxQty) {
+                    this.setCustomValidity(`Cannot return more than ${maxQty} FLCs`);
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+            
+            dispatchSelect.addEventListener('change', updateForm);
+            
+            // Initialize
+            updateForm();
+        });
+    </script>
+</body>
 </html>
