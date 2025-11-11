@@ -12,12 +12,37 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <style>
+      .card {
+        border: none;
+        border-radius: 15px;
+      }
+      .form-select:focus, .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+      }
+      .end-user-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 10px;
+      }
+      .remaining-badge {
+        font-size: 0.8em;
+        margin-left: 5px;
+      }
+    </style>
   </head>
   <body class="bg-light">
     {% include 'navbar.html' %}
 
-    <div class="container mt-5">
-      <h3 class="text-primary mb-4">Return Entry</h3>
+    <div class="container mt-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="text-primary mb-0">
+          <i class="fas fa-arrow-left me-2"></i>Return Management
+        </h3>
+        <span class="badge bg-secondary">Supplier Portal</span>
+      </div>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -30,71 +55,288 @@
       {% endif %}
       {% endwith %}
 
-      <!-- ------------------ Return Form ------------------ -->
+      <!-- ------------------ Enhanced Return Form ------------------ -->
       <div class="card shadow p-4 mb-4">
-        <form method="POST" action="{{ url_for('returns') }}">
-          <div class="mb-3">
-            <label class="form-label fw-bold">Select Pending Dispatch</label>
-            <select name="dispatch_id" class="form-select" required>
-              <option value="" disabled selected>-- Select a Pending Dispatch --</option>
-              {% for d in dispatches %}
-              <option value="{{ d.id }}">
-                ID {{ d.id }} — {{ d.component or 'N/A' }}
-                | To: {{ d.receiver_name if d.receiver_name else d.to_role }}
-                | Sent: {{ d.flc_qty }}
-                | Returned: <span class="text-success fw-semibold">{{ d.total_returned }}</span>
-                | Remaining: <span class="text-danger fw-semibold">{{ d.remaining }}</span>
-              </option>
-              {% endfor %}
-            </select>
+        <h5 class="card-title text-dark mb-4">
+          <i class="fas fa-undo me-2"></i>Record New Return
+        </h5>
+        <form method="POST" action="{{ url_for('returns') }}" id="returnForm">
+          <div class="row">
+            <!-- Dispatch Selection -->
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Select Dispatch</label>
+              <select name="dispatch_id" class="form-select" id="dispatchSelect" required>
+                <option value="" disabled selected>-- Select a Dispatch --</option>
+                {% for d in dispatches %}
+                <option value="{{ d.id }}" data-component="{{ d.component }}">
+                  Dispatch #{{ d.id }} | {{ d.component }} 
+                  | To: {{ d.receiver.username if d.receiver else 'N/A' }}
+                  | Total: {{ d.flc_qty }} FLCs
+                  | Returned: {{ d.total_returned }}
+                  | Remaining: <span class="text-success">{{ d.remaining }}</span>
+                </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Select the original dispatch to track returns</div>
+            </div>
+
+            <!-- End User Selection -->
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">End User Returning FLCs</label>
+              <select name="end_user_id" class="form-select" id="endUserSelect" required disabled>
+                <option value="" disabled selected>-- First select a dispatch --</option>
+              </select>
+              <div class="form-text">Select which end user is returning the FLCs</div>
+              
+              <!-- End User Info Display -->
+              <div id="endUserInfo" class="end-user-info mt-2" style="display: none;">
+                <small class="text-muted" id="endUserDetails">
+                  FLC information will appear here after selection
+                </small>
+              </div>
+            </div>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-bold">FLC Quantity Returned</label>
-            <input type="number" name="flc_qty" class="form-control" min="1" required />
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">FLC Quantity Returned</label>
+              <input type="number" name="flc_qty" class="form-control" id="flcQty" 
+                     min="1" required placeholder="Enter quantity">
+              <div class="form-text" id="qtyHelp">Maximum available: <span id="maxQty">0</span> FLCs</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Return Condition/Remarks</label>
+              <textarea name="remarks" class="form-control" 
+                        placeholder="Reason for return, condition notes, damage details, etc." 
+                        rows="2"></textarea>
+            </div>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-bold">Remarks (optional)</label>
-            <input type="text" name="remarks" class="form-control" />
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+              <i class="fas fa-check-circle me-2"></i>Record Return
+            </button>
           </div>
-
-          <button type="submit" class="btn btn-primary w-100">Record Return</button>
         </form>
       </div>
 
-      <!-- ------------------ Recent Returns Table ------------------ -->
-      <h4 class="text-dark mt-5">Recent Returns</h4>
-      <div class="table-responsive">
-        <table class="table table-bordered table-hover table-striped">
-          <thead class="table-primary">
-            <tr>
-              <th>ID</th>
-              <th>Dispatch ID</th>
-              <th>FLC Qty</th>
-              <th>Remarks</th>
-              <th>Date/Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in returns %}
-            <tr>
-              <td>{{ r.id }}</td>
-              <td>{{ r.dispatch_id }}</td>
-              <td><strong>{{ r.flc_qty }}</strong></td>
-              <td>{{ r.remarks or '-' }}</td>
-              <td>{{ r.date_time.strftime('%Y-%m-%d %H:%M:%S') if r.date_time else '' }}</td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="5" class="text-center text-muted">No returns recorded yet.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <!-- ------------------ Enhanced Returns Table ------------------ -->
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-history me-2"></i>Recent Return History
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-striped">
+              <thead class="table-light">
+                <tr>
+                  <th>Return ID</th>
+                  <th>Dispatch ID</th>
+                  <th>Component</th>
+                  <th>From Intermediate</th>
+                  <th>End User</th>
+                  <th>FLC Qty</th>
+                  <th>Remarks</th>
+                  <th>Date/Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in returns %}
+                <tr>
+                  <td><strong>#{{ r.id }}</strong></td>
+                  <td>
+                    <span class="badge bg-secondary">#{{ r.dispatch_id }}</span>
+                  </td>
+                  <td>
+                    <small>{{ r.dispatch.component if r.dispatch else 'N/A' }}</small>
+                  </td>
+                  <td>
+                    {{ r.from_user.username if r.from_user else 'N/A' }}
+                  </td>
+                  <td>
+                    {% if r.end_user %}
+                    <div>
+                      <strong>{{ r.end_user.name }}</strong>
+                      {% if r.end_user.location %}
+                      <br><small class="text-muted">{{ r.end_user.location }}</small>
+                      {% endif %}
+                    </div>
+                    {% else %}
+                    <span class="text-muted">N/A</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="badge bg-success fs-6">{{ r.flc_qty }}</span>
+                  </td>
+                  <td>
+                    {% if r.remarks %}
+                    <small>{{ r.remarks }}</small>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <small>{{ r.date_time.strftime('%Y-%m-%d %H:%M') if r.date_time else '' }}</small>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="8" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-2x mb-3 d-block"></i>
+                    No returns recorded yet.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
+    <!-- Font Awesome for Icons -->
+    <script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dispatchSelect = document.getElementById('dispatchSelect');
+    const endUserSelect = document.getElementById('endUserSelect');
+    const endUserInfo = document.getElementById('endUserInfo');
+    const endUserDetails = document.getElementById('endUserDetails');
+    const flcQty = document.getElementById('flcQty');
+    const maxQtySpan = document.getElementById('maxQty');
+    const submitBtn = document.getElementById('submitBtn');
+
+    dispatchSelect.addEventListener('change', function() {
+        const dispatchId = this.value;
+        const selectedOption = this.options[this.selectedIndex];
+        
+        if (dispatchId) {
+            // Enable end user select
+            endUserSelect.disabled = false;
+            endUserSelect.innerHTML = '<option value="" disabled selected>Loading end users...</option>';
+            endUserInfo.style.display = 'block';
+            endUserDetails.innerHTML = 'Fetching end user data...';
+            
+            // Reset quantity field
+            flcQty.value = '';
+            maxQtySpan.textContent = '0';
+            flcQty.disabled = true;
+            
+            // Fetch end users for this dispatch
+            fetch(`/api/dispatch/${dispatchId}/endusers`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(endUsers => {
+                    console.log('End users received:', endUsers);
+                    
+                    if (endUsers.length === 0) {
+                        endUserSelect.innerHTML = '<option value="" disabled selected>No end users found with remaining FLCs</option>';
+                        endUserSelect.disabled = true;
+                        endUserDetails.innerHTML = '<span class="text-warning">No end users found with remaining FLCs for this dispatch.</span>';
+                        flcQty.disabled = true;
+                        return;
+                    }
+                    
+                    endUserSelect.innerHTML = '<option value="" disabled selected>-- Select End User --</option>';
+                    endUsers.forEach(user => {
+                        const option = document.createElement('option');
+                        option.value = user.id;
+                        option.textContent = `${user.name} - ${user.remaining} FLCs available`;
+                        option.dataset.remaining = user.remaining;
+                        option.dataset.sent = user.sent;
+                        option.dataset.returned = user.returned;
+                        option.dataset.location = user.location;
+                        endUserSelect.appendChild(option);
+                    });
+                    
+                    endUserSelect.disabled = false;
+                    endUserDetails.innerHTML = 'Please select an end user from the list above';
+                })
+                .catch(error => {
+                    console.error('Error fetching end users:', error);
+                    endUserSelect.innerHTML = '<option value="" disabled selected>Error loading end users</option>';
+                    endUserSelect.disabled = true;
+                    endUserDetails.innerHTML = '<span class="text-danger">Error loading end users. Please try again.</span>';
+                });
+        } else {
+            endUserSelect.innerHTML = '<option value="" disabled selected>-- First select a dispatch --</option>';
+            endUserSelect.disabled = true;
+            endUserInfo.style.display = 'none';
+            flcQty.disabled = true;
+        }
+    });
+
+    endUserSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        
+        if (selectedOption.value) {
+            const remaining = parseInt(selectedOption.dataset.remaining) || 0;
+            const sent = parseInt(selectedOption.dataset.sent) || 0;
+            const returned = parseInt(selectedOption.dataset.returned) || 0;
+            const location = selectedOption.dataset.location || 'No location';
+            const userName = selectedOption.text.split(' - ')[0];
+            
+            // Update max quantity and enable input
+            maxQtySpan.textContent = remaining;
+            flcQty.max = remaining;
+            flcQty.disabled = false;
+            flcQty.placeholder = `Enter quantity (max: ${remaining})`;
+            
+            // Update end user info
+            endUserDetails.innerHTML = `
+                <div class="fw-bold text-dark">${userName}</div>
+                <div class="small text-muted">
+                    <div>📍 ${location}</div>
+                    <div>📦 Total Received: <strong>${sent}</strong> FLCs</div>
+                    <div>🔄 Already Returned: <strong>${returned}</strong> FLCs</div>
+                    <div>✅ Available to Return: <strong class="text-success">${remaining}</strong> FLCs</div>
+                </div>
+            `;
+        } else {
+            flcQty.disabled = true;
+            flcQty.value = '';
+            endUserDetails.innerHTML = 'Please select an end user from the list above';
+        }
+    });
+
+    flcQty.addEventListener('input', function() {
+        const maxQty = parseInt(this.max) || 0;
+        const currentQty = parseInt(this.value) || 0;
+        
+        if (currentQty > maxQty) {
+            this.classList.add('is-invalid');
+            submitBtn.disabled = true;
+        } else if (currentQty <= 0) {
+            this.classList.add('is-invalid');
+            submitBtn.disabled = true;
+        } else {
+            this.classList.remove('is-invalid');
+            submitBtn.disabled = false;
+        }
+    });
+
+    // Form validation
+    document.getElementById('returnForm').addEventListener('submit', function(e) {
+        const dispatchId = dispatchSelect.value;
+        const endUserId = endUserSelect.value;
+        const qty = parseInt(flcQty.value) || 0;
+        const maxQty = parseInt(flcQty.max) || 0;
+        
+        if (!dispatchId || !endUserId || qty <= 0 || qty > maxQty) {
+            e.preventDefault();
+            alert('Please fill all fields correctly:\n- Select a dispatch\n- Select an end user\n- Enter valid quantity (1-' + maxQty + ')');
+        }
+    });
+});
+</script>
   </body>
 </html>
