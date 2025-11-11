@@ -24,7 +24,8 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev_secret_key")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL",
     # "postgresql://postgres:1234@localhost:5432/flc"
-    "postgresql://postgres:eKJOgGccJZtXKcUvrcEDkUteFbuzRsqh@switchback.proxy.rlwy.net:40253/railway"
+    # "postgresql://postgres:eKJOgGccJZtXKcUvrcEDkUteFbuzRsqh@switchback.proxy.rlwy.net:40253/railway"
+    "postgresql://postgres:1234@localhost:5432/flc"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -78,23 +79,20 @@ class DispatchData(db.Model):
     def __repr__(self):
         return f"<Dispatch {self.id} {self.from_role}->{self.to_role} ({self.dispatch_type}) x{self.flc_qty}>"
 
-# In your models (add this to Returned model)
+
 class Returned(db.Model):
     __tablename__ = "returned"
     id = db.Column(db.Integer, primary_key=True)
     dispatch_id = db.Column(db.Integer, db.ForeignKey("dispatch_data.id"), nullable=False)
     from_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     to_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    from_end_user_id = db.Column(db.Integer, db.ForeignKey('end_users.id'), nullable=True)
     flc_qty = db.Column(db.Integer, nullable=False)
     remarks = db.Column(db.String(500), nullable=True)
     date_time = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # FIXED: Add proper relationship names
-    dispatch_rel = db.relationship('DispatchData', foreign_keys=[dispatch_id], backref='returns_received')
-    from_user_rel = db.relationship('User', foreign_keys=[from_user_id], backref='returns_sent')
-    to_user_rel = db.relationship('User', foreign_keys=[to_user_id], backref='returns_received')
-    from_end_user_rel = db.relationship('EndUser', foreign_keys=[from_end_user_id], backref='returns_made')
+
+    from_user = db.relationship('User', foreign_keys=[from_user_id])
+    to_user = db.relationship('User', foreign_keys=[to_user_id])
 
     def __repr__(self):
         return f"<Return {self.id} dispatch:{self.dispatch_id} x{self.flc_qty}>"
@@ -480,118 +478,29 @@ def returns():
         flash("Only suppliers can record returns.", "danger")
         return redirect(url_for('dashboard'))
 
-    # GET REQUEST - Show available dispatches for return
-    if request.method == 'GET':
-        try:
-            # Get all dispatches to end users first
-            all_end_user_dispatches = db.session.query(
-                DispatchData
-            ).filter(
-                DispatchData.dispatch_type == "filled",
-                DispatchData.to_role == "End User",
-                DispatchData.status.in_(["Delivered", "Received", "Partially Returned"])
-            ).order_by(DispatchData.date_time.desc()).all()
-
-            # Calculate remaining FLCs for each dispatch and filter
-            dispatches_for_return = []
-            for dispatch in all_end_user_dispatches:
-                # Calculate returned quantity for this specific dispatch
-                total_returned = db.session.query(
-                    func.coalesce(func.sum(Returned.flc_qty), 0)
-                ).filter(
-                    Returned.dispatch_id == dispatch.id
-                ).scalar() or 0
-
-                remaining_flcs = dispatch.flc_qty - total_returned
-
-                # Only include dispatches with remaining FLCs
-                if remaining_flcs > 0:
-                    # Get end user details
-                    end_user = EndUser.query.get(dispatch.to_end_user_id) if dispatch.to_end_user_id else None
-                    
-                    dispatches_for_return.append({
-                        'id': dispatch.id,
-                        'component': dispatch.component,
-                        'flc_qty': dispatch.flc_qty,
-                        'remaining': remaining_flcs,
-                        'total_returned': total_returned,
-                        'end_user_name': end_user.name if end_user else 'Unknown',
-                        'end_user_location': end_user.location if end_user else '',
-                        'date_time': dispatch.date_time,
-                        'to_end_user_id': dispatch.to_end_user_id
-                    })
-
-            # Get all end users for dropdown
-            end_users = EndUser.query.order_by(EndUser.name.asc()).all()
-
-            # Show recent returns for reference - FIXED: No relationship loading needed
-            all_returns = Returned.query.order_by(Returned.date_time.desc()).limit(50).all()
-
-            # We'll manually get dispatch and end user details for the template
-            returns_with_details = []
-            for return_item in all_returns:
-                dispatch = DispatchData.query.get(return_item.dispatch_id)
-                end_user = EndUser.query.get(return_item.from_end_user_id) if return_item.from_end_user_id else None
-                
-                returns_with_details.append({
-                    'id': return_item.id,
-                    'dispatch_id': return_item.dispatch_id,
-                    'component': dispatch.component if dispatch else 'Unknown',
-                    'from_end_user': end_user,
-                    'flc_qty': return_item.flc_qty,
-                    'remarks': return_item.remarks,
-                    'date_time': return_item.date_time
-                })
-
-            return render_template('returns.html', 
-                                 dispatches=dispatches_for_return, 
-                                 returns=returns_with_details,
-                                 end_users=end_users)
-
-        except Exception as e:
-            app.logger.error(f"Error in returns GET: {str(e)}")
-            flash("Error loading return page. Please try again.", "danger")
-            return redirect(url_for('dashboard'))
-
-    # POST REQUEST - Handle return submission
+    # ------------------ POST REQUEST: Record a Return ------------------
     if request.method == 'POST':
         try:
-            # Get the SPECIFIC dispatch that's being returned
             dispatch_id = int(request.form.get('dispatch_id', 0))
             flc_qty = int(request.form.get('flc_qty', 0))
-            from_end_user_id = request.form.get('from_end_user_id')
             remarks = request.form.get('remarks', '').strip()
 
-            # Get the specific dispatch
             dispatch = DispatchData.query.get(dispatch_id)
             if not dispatch:
                 flash("Invalid dispatch selected.", "danger")
                 return redirect(url_for('returns'))
 
-            # Validate end user if provided
-            if from_end_user_id:
-                from_end_user = EndUser.query.get(int(from_end_user_id))
-                if not from_end_user:
-                    flash("Invalid end user selected.", "danger")
-                    return redirect(url_for('returns'))
-                
-                # Verify the end user matches the dispatch
-                if from_end_user.id != dispatch.to_end_user_id:
-                    end_user_name = from_end_user.name if from_end_user else 'another end user'
-                    flash(f"Error: This dispatch was sent to a different end user. Please select the correct end user.", "danger")
-                    return redirect(url_for('returns'))
+            # Calculate already returned quantity
+            total_returned = (
+                db.session.query(db.func.coalesce(db.func.sum(Returned.flc_qty), 0))
+                .filter_by(dispatch_id=dispatch_id)
+                .scalar()
+                or 0
+            )
+            remaining = dispatch.flc_qty - total_returned
 
-            # Calculate already returned quantity for THIS SPECIFIC DISPATCH
-            total_returned_for_this_dispatch = db.session.query(
-                func.coalesce(func.sum(Returned.flc_qty), 0)
-            ).filter(
-                Returned.dispatch_id == dispatch_id
-            ).scalar() or 0
-
-            remaining_from_this_dispatch = dispatch.flc_qty - total_returned_for_this_dispatch
-
-            # Validation
-            if remaining_from_this_dispatch <= 0:
+            # Validation checks
+            if remaining <= 0:
                 flash("All FLCs from this dispatch have already been returned.", "info")
                 return redirect(url_for('returns'))
 
@@ -599,16 +508,15 @@ def returns():
                 flash("Returned quantity must be positive.", "warning")
                 return redirect(url_for('returns'))
 
-            if flc_qty > remaining_from_this_dispatch:
-                flash(f"Cannot return {flc_qty} FLCs — only {remaining_from_this_dispatch} remaining from dispatch #{dispatch.id}.", "danger")
+            if flc_qty > remaining:
+                flash(f"Cannot return {flc_qty} FLCs — only {remaining} remaining.", "danger")
                 return redirect(url_for('returns'))
 
-            # Record the return for THIS SPECIFIC DISPATCH
+            # Record the return
             new_return = Returned(
                 dispatch_id=dispatch.id,
                 from_user_id=current_user.id,
-                to_user_id=dispatch.from_user_id,
-                from_end_user_id=dispatch.to_end_user_id,
+                to_user_id=dispatch.from_user_id,  # back to supplier
                 flc_qty=flc_qty,
                 remarks=remarks,
                 date_time=datetime.utcnow()
@@ -616,28 +524,55 @@ def returns():
             db.session.add(new_return)
 
             # Update dispatch status
-            total_after_this_return = total_returned_for_this_dispatch + flc_qty
-            if total_after_this_return >= dispatch.flc_qty:
+            if flc_qty == remaining:
                 dispatch.status = "Returned"
-            elif total_after_this_return > 0:
+            else:
                 dispatch.status = "Partially Returned"
 
             db.session.commit()
-            
-            # Get end user name for success message
-            end_user = EndUser.query.get(dispatch.to_end_user_id) if dispatch.to_end_user_id else None
-            end_user_name = end_user.name if end_user else "End User"
-            flash(f"✅ Return of {flc_qty} FLCs from {end_user_name} recorded successfully for dispatch #{dispatch.id}.", "success")
+            flash(f"Return of {flc_qty} FLCs recorded successfully.", "success")
             return redirect(url_for('returns'))
 
-        except ValueError as e:
-            flash("Invalid input data. Please check the form values.", "danger")
-            return redirect(url_for('returns'))
         except Exception as e:
             db.session.rollback()
             app.logger.exception("Error recording return")
             flash(f"Failed to record return: {str(e)}", "danger")
             return redirect(url_for('returns'))
+
+    # ------------------ GET REQUEST: Show Returns Page ------------------
+    # Only include active dispatches that still have pending returns
+    active_dispatches = (
+        DispatchData.query.filter_by(from_user_id=current_user.id)
+        .filter(DispatchData.status.in_(["Pending", "Partially Returned""Pending", "Received"]))
+        .order_by(DispatchData.date_time.desc())
+        .all()
+    )
+
+    dispatches = []
+    for d in active_dispatches:
+        total_returned = (
+            db.session.query(db.func.coalesce(db.func.sum(Returned.flc_qty), 0))
+            .filter_by(dispatch_id=d.id)
+            .scalar()
+            or 0
+        )
+        remaining = d.flc_qty - total_returned
+
+        if remaining > 0:
+            d.total_returned = total_returned
+            d.remaining = remaining
+            dispatches.append(d)
+
+    # Show only recent returns for reference
+    all_returns = (
+        Returned.query.order_by(Returned.date_time.desc()).limit(50).all()
+    )
+
+    return render_template('returns.html', dispatches=dispatches, returns=all_returns)
+
+
+
+
 
 # ------------------- COMPONENTS (Supplier manages) -------------------
 # ------------------- MANAGE INTERMEDIATES -------------------
@@ -1061,82 +996,6 @@ def supplier_analytics():
         flash("Session expired or user not found. Please log in again.", "danger")
         return redirect(url_for("logout"))
 
-    # === REAL-TIME SUPPLIER INVENTORY CALCULATION ===
-    def get_realtime_supplier_inventory():
-        """Get real-time supplier inventory with component breakdown"""
-        supplier_id = session.get('user_id')
-        inventory_data = {
-            'total_available': 0,
-            'components': [],
-            'dispatched_today': 0,
-            'returned_today': 0
-        }
-        
-        today = datetime.utcnow().date()
-        
-        # Calculate for each component
-        components = Component.query.filter_by(created_by=supplier_id).all()
-        
-        for component in components:
-            # Total dispatched for this component
-            total_dispatched = db.session.query(
-                func.coalesce(func.sum(DispatchData.flc_qty), 0)
-            ).filter(
-                DispatchData.from_user_id == supplier_id,
-                DispatchData.component == component.name,
-                DispatchData.dispatch_type == 'empty'
-            ).scalar() or 0
-            
-            # Total returned for this component
-            total_returned = db.session.query(
-                func.coalesce(func.sum(Returned.flc_qty), 0)
-            ).join(DispatchData, Returned.dispatch_id == DispatchData.id
-            ).filter(
-                Returned.to_user_id == supplier_id,
-                DispatchData.component == component.name
-            ).scalar() or 0
-            
-            # Today's dispatches
-            dispatched_today = db.session.query(
-                func.coalesce(func.sum(DispatchData.flc_qty), 0)
-            ).filter(
-                DispatchData.from_user_id == supplier_id,
-                DispatchData.component == component.name,
-                DispatchData.dispatch_type == 'empty',
-                func.date(DispatchData.date_time) == today
-            ).scalar() or 0
-            
-            # Today's returns
-            returned_today = db.session.query(
-                func.coalesce(func.sum(Returned.flc_qty), 0)
-            ).join(DispatchData, Returned.dispatch_id == DispatchData.id
-            ).filter(
-                Returned.to_user_id == supplier_id,
-                DispatchData.component == component.name,
-                func.date(Returned.date_time) == today
-            ).scalar() or 0
-            
-            available = component.flc_stock - total_dispatched + total_returned
-            
-            inventory_data['components'].append({
-                'name': component.name,
-                'baseline_stock': component.flc_stock,
-                'dispatched': total_dispatched,
-                'returned': total_returned,
-                'available': max(available, 0),
-                'dispatched_today': dispatched_today,
-                'returned_today': returned_today
-            })
-            
-            inventory_data['total_available'] += max(available, 0)
-            inventory_data['dispatched_today'] += dispatched_today
-            inventory_data['returned_today'] += returned_today
-        
-        return inventory_data
-
-    # Get real-time inventory
-    realtime_inventory = get_realtime_supplier_inventory()
-
     # === COMPONENT-BASED FLC CALCULATIONS ===
     components = Component.query.all()
     component_analytics = {}
@@ -1281,106 +1140,68 @@ def supplier_analytics():
         })
 
     # === USER-WISE FLC DISTRIBUTION ===
-    def calculate_current_flc_distribution():
-        """Calculate exactly how many FLCs each user currently holds"""
-        
-        # Get intermediates with current FLC counts
-        intermediates_with_flcs = []
-        intermediate_users = User.query.filter_by(role='Intermediate').all()
-        
-        for user in intermediate_users:
-            # Calculate FLCs currently with this intermediate
-            received_flcs = db.session.query(
-                func.coalesce(func.sum(DispatchData.flc_qty), 0)
-            ).filter(
-                DispatchData.to_user_id == user.id,
-                DispatchData.dispatch_type == 'empty',
-                DispatchData.status.in_(['Received', 'Pending'])
-            ).scalar() or 0
-            
-            # Subtract FLCs already dispatched to end users
-            dispatched_flcs = db.session.query(
-                func.coalesce(func.sum(DispatchData.flc_qty), 0)
-            ).filter(
-                DispatchData.from_user_id == user.id,
-                DispatchData.dispatch_type == 'filled'
-            ).scalar() or 0
-            
-            current_flcs = received_flcs - dispatched_flcs
-            
-            if current_flcs > 0:
-                # Get components for this intermediate
-                components = db.session.query(
-                    DispatchData.component,
-                    func.sum(DispatchData.flc_qty).label('total_flcs')
-                ).filter(
-                    DispatchData.to_user_id == user.id,
-                    DispatchData.status.in_(['Received', 'Pending'])
-                ).group_by(DispatchData.component).all()
-                
-                intermediates_with_flcs.append({
-                    'id': user.id,
-                    'username': user.username,
-                    'total_flcs': current_flcs,
-                    'components': [{'name': comp[0], 'flcs': comp[1]} for comp in components],
-                    'avg_holding_days': 0,  # Simplified for this example
-                    'created_at': user.created_at
-                })
-        
-        # Get end users with current FLC counts
-        end_users_with_flcs = []
-        all_end_users = EndUser.query.all()
-        
-        for end_user in all_end_users:
-            # Calculate FLCs currently with this end user
-            received_flcs = db.session.query(
-                func.coalesce(func.sum(DispatchData.flc_qty), 0)
-            ).filter(
-                DispatchData.to_end_user_id == end_user.id,
-                DispatchData.dispatch_type == 'filled',
-                DispatchData.status.in_(['Delivered', 'Received'])
-            ).scalar() or 0
-            
-            # Subtract returned FLCs
-            returned_flcs = db.session.query(
-                func.coalesce(func.sum(Returned.flc_qty), 0)
-            ).filter(
-                Returned.from_end_user_id == end_user.id
-            ).scalar() or 0
-            
-            current_flcs = received_flcs - returned_flcs
-            
-            if current_flcs > 0:
-                # Get components for this end user
-                components = db.session.query(
-                    DispatchData.component,
-                    func.sum(DispatchData.flc_qty).label('total_flcs')
-                ).filter(
-                    DispatchData.to_end_user_id == end_user.id,
-                    DispatchData.status.in_(['Delivered', 'Received'])
-                ).group_by(DispatchData.component).all()
-                
-                end_users_with_flcs.append({
-                    'id': end_user.id,
-                    'name': end_user.name,
-                    'location': end_user.location,
-                    'total_flcs': current_flcs,
-                    'components': [{'name': comp[0], 'flcs': comp[1]} for comp in components],
-                    'holding_since': '2024-01-01',  # Simplified
-                    'days_remaining': 30  # Simplified
-                })
-        
-        return {
-            'intermediates': intermediates_with_flcs,
-            'end_users': end_users_with_flcs,
-            'total_flcs_at_supplier': realtime_inventory['total_available'],  # Use real-time data
-            'total_flcs_with_intermediates': sum(u['total_flcs'] for u in intermediates_with_flcs),
-            'total_flcs_with_endusers': sum(u['total_flcs'] for u in end_users_with_flcs),
-            'total_flcs_in_system': total_baseline,
-            'total_users': len(intermediates_with_flcs) + len(end_users_with_flcs)
-        }
+    intermediate_flc_distribution = db.session.query(
+        User.username,
+        DispatchData.component,
+        func.sum(DispatchData.flc_qty).label('total_flcs')
+    ).join(DispatchData, User.id == DispatchData.to_user_id)\
+     .filter(
+        DispatchData.from_user_id == user.id,
+        User.role == "Intermediate",
+        DispatchData.dispatch_type == "empty",
+        DispatchData.status.in_(["Pending", "Received"])
+    ).group_by(User.id, User.username, DispatchData.component).all()
 
-    user_distribution = calculate_current_flc_distribution()
+    enduser_flc_distribution = db.session.query(
+        EndUser.name,
+        EndUser.location,
+        DispatchData.component,
+        func.sum(DispatchData.flc_qty).label('total_flcs')
+    ).join(DispatchData, EndUser.id == DispatchData.to_end_user_id)\
+     .filter(
+        DispatchData.dispatch_type == "filled",
+        DispatchData.status.in_(["Delivered", "Received"])
+    ).group_by(EndUser.id, EndUser.name, EndUser.location, DispatchData.component).all()
+
+    # Prepare user distribution data
+    user_distribution = {'intermediates': [], 'end_users': []}
+
+    # Process intermediate distribution
+    for intermediate in intermediate_flc_distribution:
+        username, component, total_flcs = intermediate
+        existing_intermediate = next((i for i in user_distribution['intermediates'] if i['username'] == username), None)
+        
+        if existing_intermediate:
+            existing_intermediate['components'].append({'name': component, 'flcs': total_flcs or 0})
+            existing_intermediate['total_flcs'] += total_flcs or 0
+        else:
+            user_distribution['intermediates'].append({
+                'username': username,
+                'role': 'Intermediate',
+                'total_flcs': total_flcs or 0,
+                'components': [{'name': component, 'flcs': total_flcs or 0}]
+            })
+
+    # Process end user distribution
+    for enduser in enduser_flc_distribution:
+        name, location, component, total_flcs = enduser
+        existing_enduser = next((e for e in user_distribution['end_users'] if e['name'] == name), None)
+        
+        if existing_enduser:
+            existing_enduser['components'].append({'name': component, 'flcs': total_flcs or 0})
+            existing_enduser['total_flcs'] += total_flcs or 0
+        else:
+            user_distribution['end_users'].append({
+                'name': name,
+                'location': location,
+                'role': 'End User',
+                'total_flcs': total_flcs or 0,
+                'components': [{'name': component, 'flcs': total_flcs or 0}]
+            })
+
+    # Sort by total FLCs (descending)
+    user_distribution['intermediates'].sort(key=lambda x: x['total_flcs'], reverse=True)
+    user_distribution['end_users'].sort(key=lambda x: x['total_flcs'], reverse=True)
 
     # === TIME-SERIES DATA FOR CHARTS ===
     today = datetime.utcnow().date()
@@ -1417,20 +1238,9 @@ def supplier_analytics():
         
         flc_movement.append(day_flc_sent - day_flc_returned)
 
-    # Returns by End User
-    returns_by_end_user = db.session.query(
-        EndUser.name,
-        EndUser.location,
-        func.sum(Returned.flc_qty).label('total_returns')
-    ).join(Returned, Returned.from_end_user_id == EndUser.id)\
-     .filter(Returned.to_user_id == user.id)\
-     .group_by(EndUser.id, EndUser.name, EndUser.location)\
-     .order_by(func.sum(Returned.flc_qty).desc())\
-     .all()
-
     # === PREPARE DATA FOR TEMPLATE ===
     flc_summary = {
-        "at_supplier": realtime_inventory['total_available'],  # Use real-time data
+        "at_supplier": total_at_supplier,
         "at_intermediate": total_at_intermediate,
         "at_enduser": total_at_enduser,
         "total_sent": total_sent,
@@ -1474,582 +1284,8 @@ def supplier_analytics():
         component_usage=component_usage,
         intermediate_performance=enhanced_performance,
         component_analytics=component_analytics,
-        intermediate_users=user_distribution['intermediates'],
-        end_users=user_distribution['end_users'],
-        total_flcs_at_supplier=realtime_inventory['total_available'],
-        total_flcs_with_intermediates=user_distribution['total_flcs_with_intermediates'],
-        total_flcs_with_endusers=user_distribution['total_flcs_with_endusers'],
-        total_flcs_in_system=user_distribution['total_flcs_in_system'],
-        total_users=user_distribution['total_users'],
-        returns_by_end_user=returns_by_end_user,
-        realtime_inventory=realtime_inventory
+        user_distribution=user_distribution
     )
-
-@app.route("/api/realtime/inventory")
-@login_required
-@role_required("Supplier")
-def api_realtime_inventory():
-    """API endpoint for real-time inventory data"""
-    def get_realtime_supplier_inventory():
-        supplier_id = session.get('user_id')
-        inventory_data = {
-            'total_available': 0,
-            'components': [],
-            'dispatched_today': 0,
-            'returned_today': 0
-        }
-        
-        today = datetime.utcnow().date()
-        components = Component.query.filter_by(created_by=supplier_id).all()
-        
-        for component in components:
-            total_dispatched = db.session.query(
-                func.coalesce(func.sum(DispatchData.flc_qty), 0)
-            ).filter(
-                DispatchData.from_user_id == supplier_id,
-                DispatchData.component == component.name,
-                DispatchData.dispatch_type == 'empty'
-            ).scalar() or 0
-            
-            total_returned = db.session.query(
-                func.coalesce(func.sum(Returned.flc_qty), 0)
-            ).join(DispatchData, Returned.dispatch_id == DispatchData.id
-            ).filter(
-                Returned.to_user_id == supplier_id,
-                DispatchData.component == component.name
-            ).scalar() or 0
-            
-            dispatched_today = db.session.query(
-                func.coalesce(func.sum(DispatchData.flc_qty), 0)
-            ).filter(
-                DispatchData.from_user_id == supplier_id,
-                DispatchData.component == component.name,
-                DispatchData.dispatch_type == 'empty',
-                func.date(DispatchData.date_time) == today
-            ).scalar() or 0
-            
-            returned_today = db.session.query(
-                func.coalesce(func.sum(Returned.flc_qty), 0)
-            ).join(DispatchData, Returned.dispatch_id == DispatchData.id
-            ).filter(
-                Returned.to_user_id == supplier_id,
-                DispatchData.component == component.name,
-                func.date(Returned.date_time) == today
-            ).scalar() or 0
-            
-            available = component.flc_stock - total_dispatched + total_returned
-            
-            inventory_data['components'].append({
-                'name': component.name,
-                'baseline_stock': component.flc_stock,
-                'dispatched': total_dispatched,
-                'returned': total_returned,
-                'available': max(available, 0),
-                'dispatched_today': dispatched_today,
-                'returned_today': returned_today
-            })
-            
-            inventory_data['total_available'] += max(available, 0)
-            inventory_data['dispatched_today'] += dispatched_today
-            inventory_data['returned_today'] += returned_today
-        
-        return inventory_data
-    
-    return jsonify(get_realtime_supplier_inventory())
-
-
-def get_end_user_holdings():
-    end_users_data = []
-    
-    for end_user in EndUser.query.all():
-        # Get ALL deliveries to this end user with their specific IDs
-        deliveries = db.session.query(
-            DispatchData.id,
-            DispatchData.component,
-            DispatchData.flc_qty
-        ).filter(
-            DispatchData.to_end_user_id == end_user.id,
-            DispatchData.dispatch_type == 'filled'
-        ).all()
-        
-        # Get ALL returns with their specific dispatch IDs
-        returns = db.session.query(
-            Returned.dispatch_id,
-            Returned.flc_qty
-        ).filter(
-            Returned.from_end_user_id == end_user.id
-        ).all()
-        
-        # Group returns by dispatch_id
-        returns_by_dispatch = {}
-        for dispatch_id, returned_qty in returns:
-            returns_by_dispatch[dispatch_id] = returns_by_dispatch.get(dispatch_id, 0) + returned_qty
-        
-        # Calculate current holdings per component
-        component_holdings = {}
-        
-        for dispatch_id, component, delivered_qty in deliveries:
-            returned_qty = returns_by_dispatch.get(dispatch_id, 0)
-            current_for_this_dispatch = delivered_qty - returned_qty
-            
-            if current_for_this_dispatch > 0:
-                if component not in component_holdings:
-                    component_holdings[component] = 0
-                component_holdings[component] += current_for_this_dispatch
-        
-        # Convert to the format needed for display
-        user_components = []
-        total_flcs = 0
-        
-        for component, current_qty in component_holdings.items():
-            if current_qty > 0:
-                user_components.append({
-                    'name': component,
-                    'flcs': current_qty
-                })
-                total_flcs += current_qty
-        
-        if total_flcs > 0:
-            end_users_data.append({
-                'id': end_user.id,
-                'name': end_user.name,
-                'location': end_user.location or 'N/A',
-                'total_flcs': total_flcs,
-                'components': user_components
-            })
-    
-    return end_users_data
-
-
-
-def calculate_current_flc_distribution():
-    """Calculate exactly how many FLCs each user currently holds WITH COMPONENT BREAKDOWN"""
-    
-    # Get intermediates with current FLC counts
-    intermediates_with_flcs = []
-    intermediate_users = User.query.filter_by(role='Intermediate').all()
-    
-    for user in intermediate_users:
-        # Calculate FLCs currently with this intermediate - COMPONENT WISE
-        component_data = db.session.query(
-            DispatchData.component,
-            func.sum(DispatchData.flc_qty).label('received_flcs')
-        ).filter(
-            DispatchData.to_user_id == user.id,
-            DispatchData.dispatch_type == 'empty',
-            DispatchData.status.in_(['Received', 'Pending'])
-        ).group_by(DispatchData.component).all()
-        
-        dispatched_data = db.session.query(
-            DispatchData.component,
-            func.sum(DispatchData.flc_qty).label('dispatched_flcs')
-        ).filter(
-            DispatchData.from_user_id == user.id,
-            DispatchData.dispatch_type == 'filled'
-        ).group_by(DispatchData.component).all()
-        
-        # Create dispatched dictionary for easy lookup
-        dispatched_dict = {comp: flcs for comp, flcs in dispatched_data}
-        
-        user_components = []
-        total_user_flcs = 0
-        
-        for component, received_flcs in component_data:
-            dispatched_flcs = dispatched_dict.get(component, 0)
-            current_flcs = received_flcs - dispatched_flcs
-            
-            if current_flcs > 0:
-                user_components.append({
-                    'name': component,
-                    'flcs': current_flcs
-                })
-                total_user_flcs += current_flcs
-        
-        if total_user_flcs > 0:
-            intermediates_with_flcs.append({
-                'id': user.id,
-                'username': user.username,
-                'total_flcs': total_user_flcs,
-                'components': user_components,
-                'avg_holding_days': 0,
-                'created_at': user.created_at
-            })
-    
-    # Get end users with current FLC counts - COMPONENT WISE
-    end_users_with_flcs = []
-    all_end_users = EndUser.query.all()
-    
-    for end_user in all_end_users:
-        # Calculate FLCs currently with this end user - COMPONENT WISE
-        delivered_data = db.session.query(
-            DispatchData.component,
-            func.sum(DispatchData.flc_qty).label('delivered_flcs')
-        ).filter(
-            DispatchData.to_end_user_id == end_user.id,
-            DispatchData.dispatch_type == 'filled',
-            DispatchData.status.in_(['Delivered', 'Received'])
-        ).group_by(DispatchData.component).all()
-        
-        returned_data = db.session.query(
-            DispatchData.component,
-            func.sum(Returned.flc_qty).label('returned_flcs')
-        ).join(DispatchData, Returned.dispatch_id == DispatchData.id
-        ).filter(
-            Returned.from_end_user_id == end_user.id
-        ).group_by(DispatchData.component).all()
-        
-        # Create returned dictionary for easy lookup
-        returned_dict = {comp: flcs for comp, flcs in returned_data}
-        
-        user_components = []
-        total_user_flcs = 0
-        
-        for component, delivered_flcs in delivered_data:
-            returned_flcs = returned_dict.get(component, 0)
-            current_flcs = delivered_flcs - returned_flcs
-            
-            if current_flcs > 0:
-                user_components.append({
-                    'name': component,
-                    'flcs': current_flcs
-                })
-                total_user_flcs += current_flcs
-        
-        if total_user_flcs > 0:
-            # Get holding since date
-            first_delivery = db.session.query(
-                func.min(DispatchData.date_time)
-            ).filter(
-                DispatchData.to_end_user_id == end_user.id,
-                DispatchData.dispatch_type == 'filled'
-            ).scalar()
-            
-            holding_since = first_delivery.strftime('%Y-%m-%d') if first_delivery else '2024-01-01'
-            
-            end_users_with_flcs.append({
-                'id': end_user.id,
-                'name': end_user.name,
-                'location': end_user.location,
-                'total_flcs': total_user_flcs,
-                'components': user_components,
-                'holding_since': holding_since,
-                'days_remaining': 30  # Simplified for now
-            })
-    
-    return {
-        'intermediates': intermediates_with_flcs,
-        'end_users': end_users_with_flcs,
-        'total_flcs_at_supplier': realtime_inventory['total_available'],
-        'total_flcs_with_intermediates': sum(u['total_flcs'] for u in intermediates_with_flcs),
-        'total_flcs_with_endusers': sum(u['total_flcs'] for u in end_users_with_flcs),
-        'total_flcs_in_system': sum(comp.flc_stock for comp in Component.query.all()),
-        'total_users': len(intermediates_with_flcs) + len(end_users_with_flcs)
-    }
-
-# Add these helper functions to your Flask app
-
-def calculate_avg_holding_time(user_id):
-    """Calculate average holding time for an intermediate user"""
-    holding_times = db.session.query(
-        func.avg(func.extract('epoch', func.now() - DispatchData.date_time) / 86400)
-    ).filter(
-        DispatchData.to_user_id == user_id,
-        DispatchData.dispatch_type == 'empty',
-        DispatchData.status.in_(['Received', 'Pending'])
-    ).scalar() or 0
-    
-    return round(holding_times, 1)
-
-def get_holding_since(end_user_id):
-    """Get when an end user first received FLCs"""
-    first_receipt = db.session.query(
-        func.min(DispatchData.date_time)
-    ).filter(
-        DispatchData.to_end_user_id == end_user_id,
-        DispatchData.dispatch_type == 'filled',
-        DispatchData.status.in_(['Delivered', 'Received'])
-    ).scalar()
-    
-    if first_receipt:
-        return first_receipt.strftime('%Y-%m-%d')
-    return 'N/A'
-
-def calculate_return_due(end_user_id):
-    """Calculate days remaining until return is due (simplified logic)"""
-    # Simple implementation: assume 30-day cycle from first receipt
-    first_receipt = db.session.query(
-        func.min(DispatchData.date_time)
-    ).filter(
-        DispatchData.to_end_user_id == end_user_id,
-        DispatchData.dispatch_type == 'filled'
-    ).scalar()
-    
-    if first_receipt:
-        days_held = (datetime.utcnow() - first_receipt).days
-        days_remaining = 30 - days_held
-        return days_remaining
-    return 0
-
-def calculate_supplier_stock():
-    """Calculate REAL-TIME FLCs currently available at supplier"""
-    supplier_id = session.get('user_id')
-    
-    # Get all components owned by this supplier
-    supplier_components = Component.query.filter_by(created_by=supplier_id).all()
-    
-    total_available = 0
-    
-    for component in supplier_components:
-        # Calculate FLCs dispatched for this component
-        dispatched_flcs = db.session.query(
-            func.coalesce(func.sum(DispatchData.flc_qty), 0)
-        ).filter(
-            DispatchData.from_user_id == supplier_id,
-            DispatchData.component == component.name,
-            DispatchData.dispatch_type == 'empty'
-        ).scalar() or 0
-        
-        # Calculate FLCs returned for this component
-        returned_flcs = db.session.query(
-            func.coalesce(func.sum(Returned.flc_qty), 0)
-        ).join(DispatchData, Returned.dispatch_id == DispatchData.id
-        ).filter(
-            Returned.to_user_id == supplier_id,
-            DispatchData.component == component.name
-        ).scalar() or 0
-        
-        # Real-time available = baseline stock - dispatched + returned
-        component_available = component.flc_stock - dispatched_flcs + returned_flcs
-        total_available += max(component_available, 0)  # Ensure non-negative
-    
-    return total_available
-
-def calculate_total_system_flcs():
-    """Calculate total FLCs in the entire system"""
-    # Sum of all component baseline stocks
-    total_baseline = db.session.query(
-        func.coalesce(func.sum(Component.flc_stock), 0)
-    ).scalar() or 0
-    return total_baseline
-
-def calculate_supplier_stock():
-    """Calculate REAL-TIME FLCs currently available at supplier"""
-    supplier_id = session.get('user_id')
-    
-    # Get all components owned by this supplier
-    supplier_components = Component.query.filter_by(created_by=supplier_id).all()
-    
-    total_available = 0
-    
-    for component in supplier_components:
-        # Calculate FLCs dispatched for this component
-        dispatched_flcs = db.session.query(
-            func.coalesce(func.sum(DispatchData.flc_qty), 0)
-        ).filter(
-            DispatchData.from_user_id == supplier_id,
-            DispatchData.component == component.name,
-            DispatchData.dispatch_type == 'empty'
-        ).scalar() or 0
-        
-        # Calculate FLCs returned for this component
-        returned_flcs = db.session.query(
-            func.coalesce(func.sum(Returned.flc_qty), 0)
-        ).join(DispatchData, Returned.dispatch_id == DispatchData.id
-        ).filter(
-            Returned.to_user_id == supplier_id,
-            DispatchData.component == component.name
-        ).scalar() or 0
-        
-        # Real-time available = baseline stock - dispatched + returned
-        component_available = component.flc_stock - dispatched_flcs + returned_flcs
-        total_available += max(component_available, 0)  # Ensure non-negative
-    
-    return total_available
-
-
-def get_user_components(user_id, user_type):
-    """Get component-wise breakdown for a user"""
-    components = []
-    
-    if user_type == 'intermediate':
-        # Components currently with intermediate (received but not yet dispatched)
-        received_components = db.session.query(
-            DispatchData.component,
-            func.sum(DispatchData.flc_qty).label('total_received')
-        ).filter(
-            DispatchData.to_user_id == user_id,
-            DispatchData.dispatch_type == 'empty',
-            DispatchData.status.in_(['Received', 'Pending'])
-        ).group_by(DispatchData.component).all()
-        
-        dispatched_components = db.session.query(
-            DispatchData.component,
-            func.sum(DispatchData.flc_qty).label('total_dispatched')
-        ).filter(
-            DispatchData.from_user_id == user_id,
-            DispatchData.dispatch_type == 'filled'
-        ).group_by(DispatchData.component).all()
-        
-        # Create a dictionary of dispatched quantities by component
-        dispatched_dict = {comp[0]: comp[1] for comp in dispatched_components}
-        
-        # Calculate current holdings: received - dispatched
-        for comp in received_components:
-            component_name = comp[0]
-            received_qty = comp[1] or 0
-            dispatched_qty = dispatched_dict.get(component_name, 0)
-            current_qty = received_qty - dispatched_qty
-            
-            if current_qty > 0:
-                components.append({
-                    'name': component_name,
-                    'flcs': current_qty
-                })
-                
-    else:  # end_user
-        # Components currently with end user (delivered but not returned)
-        delivered_components = db.session.query(
-            DispatchData.component,
-            func.sum(DispatchData.flc_qty).label('total_delivered')
-        ).filter(
-            DispatchData.to_end_user_id == user_id,
-            DispatchData.dispatch_type == 'filled',
-            DispatchData.status.in_(['Delivered', 'Received'])
-        ).group_by(DispatchData.component).all()
-        
-        returned_components = db.session.query(
-            DispatchData.component,
-            func.sum(Returned.flc_qty).label('total_returned')
-        ).join(Returned, Returned.dispatch_id == DispatchData.id
-        ).filter(
-            Returned.from_end_user_id == user_id
-        ).group_by(DispatchData.component).all()
-        
-        # Create a dictionary of returned quantities by component
-        returned_dict = {comp[0]: comp[1] for comp in returned_components}
-        
-        # Calculate current holdings: delivered - returned
-        for comp in delivered_components:
-            component_name = comp[0]
-            delivered_qty = comp[1] or 0
-            returned_qty = returned_dict.get(component_name, 0)
-            current_qty = delivered_qty - returned_qty
-            
-            if current_qty > 0:
-                components.append({
-                    'name': component_name,
-                    'flcs': current_qty
-                })
-    
-    return components
-
-def calculate_current_flc_distribution():
-    """Calculate exactly how many FLCs each user currently holds"""
-    
-    # Get intermediates with current FLC counts
-    intermediates_with_flcs = []
-    intermediate_users = User.query.filter_by(role='Intermediate').all()
-    
-    for user in intermediate_users:
-        # Calculate FLCs currently with this intermediate
-        received_flcs = db.session.query(
-            func.coalesce(func.sum(DispatchData.flc_qty), 0)
-        ).filter(
-            DispatchData.to_user_id == user.id,
-            DispatchData.dispatch_type == 'empty',
-            DispatchData.status.in_(['Received', 'Pending'])
-        ).scalar() or 0
-        
-        # Subtract FLCs already dispatched to end users
-        dispatched_flcs = db.session.query(
-            func.coalesce(func.sum(DispatchData.flc_qty), 0)
-        ).filter(
-            DispatchData.from_user_id == user.id,
-            DispatchData.dispatch_type == 'filled'
-        ).scalar() or 0
-        
-        current_flcs = received_flcs - dispatched_flcs
-        
-        if current_flcs > 0:
-            intermediates_with_flcs.append({
-                'id': user.id,
-                'username': user.username,
-                'total_flcs': current_flcs,
-                'components': get_user_components(user.id, 'intermediate'),
-                'avg_holding_days': calculate_avg_holding_time(user.id),
-                'created_at': user.created_at
-            })
-    
-    # Get end users with current FLC counts
-    end_users_with_flcs = []
-    all_end_users = EndUser.query.all()
-    
-    for user in all_end_users:
-        # Calculate FLCs currently with this end user
-        received_flcs = db.session.query(
-            func.coalesce(func.sum(DispatchData.flc_qty), 0)
-        ).filter(
-            DispatchData.to_end_user_id == user.id,
-            DispatchData.dispatch_type == 'filled',
-            DispatchData.status.in_(['Delivered', 'Received'])
-        ).scalar() or 0
-        
-        # Subtract returned FLCs
-        returned_flcs = db.session.query(
-            func.coalesce(func.sum(Returned.flc_qty), 0)
-        ).filter(
-            Returned.from_end_user_id == user.id
-        ).scalar() or 0
-        
-        current_flcs = received_flcs - returned_flcs
-        
-        if current_flcs > 0:
-            end_users_with_flcs.append({
-                'id': user.id,
-                'name': user.name,
-                'location': user.location,
-                'total_flcs': current_flcs,
-                'components': get_user_components(user.id, 'end_user'),
-                'holding_since': get_holding_since(user.id),
-                'days_remaining': calculate_return_due(user.id)
-            })
-    
-    return {
-        'intermediates': intermediates_with_flcs,
-        'end_users': end_users_with_flcs,
-        'total_flcs_at_supplier': calculate_supplier_stock(),
-        'total_flcs_with_intermediates': sum(u['total_flcs'] for u in intermediates_with_flcs),
-        'total_flcs_with_endusers': sum(u['total_flcs'] for u in end_users_with_flcs),
-        'total_flcs_in_system': calculate_total_system_flcs(),
-        'total_users': len(intermediates_with_flcs) + len(end_users_with_flcs)
-    }
-
-
-
-def get_user_components(user_id, user_type):
-    """Get component-wise breakdown for a user"""
-    if user_type == 'intermediate':
-        # Components currently with intermediate
-        components = db.session.query(
-            DispatchData.component,
-            func.sum(DispatchData.flc_qty).label('total_flcs')
-        ).filter(
-            DispatchData.to_user_id == user_id,
-            DispatchData.status.in_(['Received', 'Pending'])
-        ).group_by(DispatchData.component).all()
-    else:
-        # Components currently with end user
-        components = db.session.query(
-            DispatchData.component,
-            func.sum(DispatchData.flc_qty).label('total_flcs')
-        ).filter(
-            DispatchData.to_end_user_id == user_id,
-            DispatchData.status.in_(['Delivered', 'Received'])
-        ).group_by(DispatchData.component).all()
-    
-    return [{'name': comp[0], 'flcs': comp[1]} for comp in components]
-
-
 
 @app.before_request
 def init_supplier_inventory():
@@ -2060,116 +1296,6 @@ def init_supplier_inventory():
             db.session.add(inv)
     db.session.commit()
 
-
-@app.route("/api/user/<user_type>/<int:user_id>/details")
-@login_required
-@role_required("Supplier")
-def api_user_details(user_type, user_id):
-    """Get detailed information about a user's FLC holdings"""
-    if user_type == 'intermediate':
-        user = User.query.get_or_404(user_id)
-        
-        # Get detailed dispatch history
-        dispatches = DispatchData.query.filter(
-            DispatchData.to_user_id == user_id,
-            DispatchData.dispatch_type == 'empty'
-        ).order_by(DispatchData.date_time.desc()).limit(10).all()
-        
-        dispatch_history = []
-        for dispatch in dispatches:
-            dispatch_history.append({
-                'id': dispatch.id,
-                'component': dispatch.component,
-                'flc_qty': dispatch.flc_qty,
-                'status': dispatch.status,
-                'date_time': dispatch.date_time.strftime('%Y-%m-%d %H:%M'),
-                'from_user': dispatch.sender.username
-            })
-        
-        return jsonify({
-            'user_type': 'intermediate',
-            'username': user.username,
-            'total_current_flcs': calculate_current_intermediate_flcs(user_id),
-            'dispatch_history': dispatch_history,
-            'components': get_user_components(user_id, 'intermediate'),
-            'performance_metrics': {
-                'avg_holding_time': calculate_avg_holding_time(user_id),
-                'total_dispatches_handled': DispatchData.query.filter_by(to_user_id=user_id).count(),
-                'efficiency_rate': calculate_efficiency_rate(user_id)
-            }
-        })
-    
-    else:  # end_user
-        user = EndUser.query.get_or_404(user_id)
-        
-        # Get delivery history
-        deliveries = DispatchData.query.filter(
-            DispatchData.to_end_user_id == user_id,
-            DispatchData.dispatch_type == 'filled'
-        ).order_by(DispatchData.date_time.desc()).limit(10).all()
-        
-        delivery_history = []
-        for delivery in deliveries:
-            delivery_history.append({
-                'id': delivery.id,
-                'component': delivery.component,
-                'flc_qty': delivery.flc_qty,
-                'status': delivery.status,
-                'date_time': delivery.date_time.strftime('%Y-%m-%d %H:%M'),
-                'from_intermediate': delivery.sender.username if delivery.sender else 'Unknown'
-            })
-        
-        return jsonify({
-            'user_type': 'end_user',
-            'name': user.name,
-            'location': user.location,
-            'total_current_flcs': calculate_current_enduser_flcs(user_id),
-            'delivery_history': delivery_history,
-            'components': get_user_components(user_id, 'end_user'),
-            'return_metrics': {
-                'holding_since': get_holding_since(user_id),
-                'days_remaining': calculate_return_due(user_id),
-                'total_returns': Returned.query.filter_by(from_end_user_id=user_id).count()
-            }
-        })
-
-def calculate_current_intermediate_flcs(user_id):
-    """Calculate current FLCs for intermediate"""
-    received = db.session.query(func.coalesce(func.sum(DispatchData.flc_qty), 0)).filter(
-        DispatchData.to_user_id == user_id,
-        DispatchData.dispatch_type == 'empty',
-        DispatchData.status.in_(['Received', 'Pending'])
-    ).scalar() or 0
-    
-    dispatched = db.session.query(func.coalesce(func.sum(DispatchData.flc_qty), 0)).filter(
-        DispatchData.from_user_id == user_id,
-        DispatchData.dispatch_type == 'filled'
-    ).scalar() or 0
-    
-    return received - dispatched
-
-def calculate_current_enduser_flcs(user_id):
-    """Calculate current FLCs for end user"""
-    delivered = db.session.query(func.coalesce(func.sum(DispatchData.flc_qty), 0)).filter(
-        DispatchData.to_end_user_id == user_id,
-        DispatchData.dispatch_type == 'filled',
-        DispatchData.status.in_(['Delivered', 'Received'])
-    ).scalar() or 0
-    
-    returned = db.session.query(func.coalesce(func.sum(Returned.flc_qty), 0)).filter(
-        Returned.from_end_user_id == user_id
-    ).scalar() or 0
-    
-    return delivered - returned
-
-def calculate_efficiency_rate(user_id):
-    """Calculate efficiency rate for intermediate"""
-    total_received = DispatchData.query.filter_by(to_user_id=user_id).count()
-    processed = DispatchData.query.filter_by(from_user_id=user_id).count()
-    
-    if total_received > 0:
-        return round((processed / total_received) * 100, 1)
-    return 0.0
 
 
 
