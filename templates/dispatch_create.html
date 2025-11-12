@@ -25,7 +25,7 @@
             <select name="component_id[]" class="form-select component-select" required>
               <option value="">-- Select Component --</option>
               {% for comp in components %}
-              <option value="{{ comp.id }}" data-stock="{{ comp.flc_stock }}">{{ comp.name }} (Available: {{ comp.flc_stock }})</option>
+              <option value="{{ comp.id }}" data-stock="{{ comp.flc_stock }}">{{ comp.name }} </option>
               {% endfor %}
             </select>
           </div>
@@ -254,3 +254,4 @@ function prepareData() {
 }
 </script>
 {% endblock %}
+
