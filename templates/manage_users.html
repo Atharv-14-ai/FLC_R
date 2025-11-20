@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow">
+    <div class="card-header bg-dark text-white">
+      <h4 class="mb-0">Manage Intermediates</h4>
+    </div>
+
+    <div class="card-body">
+      <!-- Add Intermediate -->
+      <form method="POST" class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-control" required placeholder="username" />
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-control" required placeholder="password" />
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-success w-100">Add</button>
+        </div>
+      </form>
+
+      <hr class="my-4" />
+
+      <!-- Intermediate List -->
+      {% if intermediates|length == 0 %}
+      <div class="alert alert-warning">No Intermediate users found.</div>
+      {% else %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Username</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in intermediates %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ u.username }}</td>
+              <td>
+                <a href="{{ url_for('edit_user', user_id=u.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                <form method="POST" action="{{ url_for('delete_user', user_id=u.id) }}" class="d-inline" onsubmit="return confirm('Delete {{u.username}}?');">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

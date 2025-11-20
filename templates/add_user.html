@@ -1,0 +1,32 @@
+{% extends "base.html" %} {% block content %}
+<div class="card shadow-sm">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">Add User (Supplier/Admin)</h5>
+  </div>
+  <div class="card-body">
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    <form method="POST">
+      <div class="mb-3">
+        <label class="form-label">Username</label>
+        <input class="form-control" name="username" required />
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" name="password" required />
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Role</label>
+        <select name="role" class="form-select" required>
+          <option value="">-- Select Role --</option>
+          <option value="Supplier">Supplier (Admin)</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="End User">End User</option>
+        </select>
+      </div>
+      <button class="btn btn-success">Create User</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

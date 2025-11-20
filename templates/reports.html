@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Reports - FLC Tracking</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css"
+    />
+    <style>
+      body {
+        background: linear-gradient(135deg, #001f3f 0%, #003366 50%, #004080 100%);
+        color: #e6f1ff;
+        font-family: "Poppins", sans-serif;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .navbar {
+        background: rgba(0, 15, 40, 0.85);
+        border-bottom: 1px solid rgba(0, 217, 255, 0.3);
+        box-shadow: 0 0 15px rgba(0, 217, 255, 0.15);
+        backdrop-filter: blur(10px);
+      }
+      .navbar-brand {
+        color: #00d9ff !important;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-shadow: 0 0 8px rgba(0, 217, 255, 0.4);
+      }
+      .nav-link {
+        color: #cceeff !important;
+        font-weight: 500;
+        transition: 0.3s;
+      }
+      .nav-link:hover {
+        color: #00d9ff !important;
+        text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+      }
+
+      main.container {
+        margin-top: 40px;
+        margin-bottom: 50px;
+      }
+
+      footer {
+        background: rgba(0, 15, 40, 0.95);
+        border-top: 1px solid rgba(0, 217, 255, 0.25);
+        color: #9cc9ff;
+        text-align: center;
+        padding: 15px 0;
+        font-size: 0.9rem;
+      }
+
+      .btn-outline-info {
+        border-color: #00d9ff;
+        color: #00d9ff;
+        transition: all 0.3s ease;
+      }
+      .btn-outline-info:hover {
+        background-color: #00d9ff;
+        color: #001f3f;
+        box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+      }
+    </style>
+  </head>
+
+  <body>
+    {% include 'navbar.html' %}
+
+    <div class="container mt-5 mb-5">
+      <h3 class="text-primary mb-4">📊 Reports ({{ role }})</h3>
+
+      <!-- Transaction History -->
+      <div class="card shadow-sm p-3 mb-4">
+        <h5 class="mb-3">🚚 Transaction History</h5>
+        <div class="table-responsive">
+          <table id="reportTable" class="table table-striped table-hover align-middle">
+            <thead class="table-primary">
+              <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Component</th>
+                <th>FLC Qty</th>
+                <th>Returned</th>
+                <th>Pending</th>
+                <th>Status</th>
+                <th>Date/Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in cycle_report %}
+              <tr>
+                <td>{{ d.id }}</td>
+                <td><span class="badge bg-secondary">Dispatch</span></td>
+                <td>{{ d.from_user }}</td>
+                <td>{{ d.to_user if d.to_user else d.to_role }}</td>
+                <td>{{ d.component }}</td>
+                <td>{{ d.flc_qty }}</td>
+                <td>{{ d.returned_qty }}</td>
+                <td>{{ d.pending_qty }}</td>
+                <td>
+                  {% if d.status == 'Received' %}
+                  <span class="badge bg-success">Received</span>
+                  {% elif d.status == 'Delivered' %}
+                  <span class="badge bg-info text-dark">Delivered to C</span>
+                  {% elif d.status == 'Pending' %}
+                  <span class="badge bg-warning text-dark">Pending</span>
+                  {% else %}
+                  <span class="badge bg-secondary">{{ d.status }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ d.date_time.strftime('%d-%m-%Y %H:%M') if d.date_time else '-' }}</td>
+              </tr>
+              {% endfor %}
+
+              {% if role == 'Supplier' %}
+              {% for r in supplier_returns %}
+              <tr>
+                <td>{{ r.id }}</td>
+                <td><span class="badge bg-success">Return</span></td>
+                <td>{{ r.from_user.username if r.from_user else 'End User' }}</td>
+                <td>{{ r.to_user.username if r.to_user else 'Supplier' }}</td>
+                <td>
+                  {{ r.component if r.component else (r.related_dispatch.component if r.related_dispatch else '-') }}
+                </td>
+                <td>{{ r.flc_qty or 0 }}</td>
+                <td>{{ r.returned_qty if r.returned_qty is not none else r.flc_qty }}</td>
+                <td>
+                  {% if r.related_dispatch %}
+                    {{ r.related_dispatch.flc_qty - (r.returned_qty or 0) }}
+                  {% else %}
+                    0
+                  {% endif %}
+                </td>
+                <td>
+                  {% if r.status == 'Returned' %}
+                  <span class="badge bg-success">Returned</span>
+                  {% elif r.status == 'Partial' %}
+                  <span class="badge bg-warning text-dark">Partial</span>
+                  {% else %}
+                  <span class="badge bg-secondary">{{ r.status or 'Returned' }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ r.date_time.strftime('%d-%m-%Y %H:%M') if r.date_time else '-' }}</td>
+              </tr>
+              {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {% if role == 'Supplier' %}
+      <!-- Pending Returns -->
+      <div class="card shadow-sm p-3 mb-4">
+        <h5>📦 Pending Returns</h5>
+        <ul class="list-group">
+          {% if pending_returns %}
+          {% for p in pending_returns %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>ID {{ p.id }}</strong> → {{ p.to_user }} <br />
+              <small>FLC: {{ p.flc_qty }}, Returned: {{ p.returned_qty }}</small>
+            </div>
+            <span class="badge bg-warning text-dark">Remaining: {{ p.pending_qty }}</span>
+          </li>
+          {% endfor %}
+          {% else %}
+          <li class="list-group-item text-muted text-center">No pending returns</li>
+          {% endif %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <!-- Remarks -->
+      <div class="card shadow-sm p-3">
+        <h5>🧾 Remarks</h5>
+        {% if remarks %}
+        <ul class="list-group">
+          {% for r in remarks %}
+          <li class="list-group-item">
+            <strong>{{ r.type }} #{{ r.id }}:</strong> {{ r.remarks }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No remarks recorded.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+      $(document).ready(function () {
+        $("#reportTable").DataTable({
+          order: [[0, "desc"]],
+          pageLength: 10,
+          language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search transactions...",
+          },
+        });
+      });
+    </script>
+  </body>
+</html>

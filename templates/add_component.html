@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="text-center text-primary">
+    {{ "Edit Component" if component else "Add New Component" }}
+  </h2>
+  <hr />
+
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Component Name</label>
+      <input
+        type="text"
+        class="form-control"
+        name="name"
+        required
+        value="{{ component.name if component else '' }}"
+        placeholder="Enter component name"
+      />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Description</label>
+      <textarea
+        class="form-control"
+        name="description"
+        rows="3"
+        placeholder="Enter description"
+      >{{ component.description if component else '' }}</textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Stock Quantity (FLC Units)</label>
+      <input
+        type="number"
+        class="form-control"
+        name="stock_qty"
+        min="0"
+        value="{{ component.stock_qty if component else 0 }}"
+        placeholder="Enter available stock"
+      />
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100">
+      {{ "Update Component" if component else "Add Component" }}
+    </button>
+
+    <a href="{{ url_for('components') }}" class="btn btn-secondary w-100 mt-2">
+      Back
+    </a>
+  </form>
+</div>
+{% endblock %}

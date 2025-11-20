@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="text-primary">Manage End Users</h2>
+  <hr>
+
+  <!-- Add End User Form -->
+  <form method="POST" class="mb-4 card p-3 shadow-sm">
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label class="form-label">End User Name</label>
+        <input type="text" name="name" class="form-control" placeholder="Enter name" required>
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Location</label>
+        <input type="text" name="location" class="form-control" placeholder="Enter location">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Remarks</label>
+        <input type="text" name="remarks" class="form-control" placeholder="Optional">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-success w-100">Add End User</button>
+  </form>
+
+  <!-- End User List -->
+  <h5>Existing End Users</h5>
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped mt-3 align-middle text-center">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Location</th>
+          <th>Remarks</th>
+          <th>Added On</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in end_users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td>{{ user.name }}</td>
+          <td>{{ user.location or '-' }}</td>
+          <td>{{ user.remarks or '-' }}</td>
+          <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>
+            <a href="{{ url_for('edit_end_user', user_id=user.id) }}" class="btn btn-sm btn-warning">Edit</a>
+            <form method="POST" action="{{ url_for('delete_end_user', user_id=user.id) }}" class="d-inline" onsubmit="return confirm('Delete {{ user.name }}?');">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-muted">No End Users found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

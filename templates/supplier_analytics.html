@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+
+<div class="container-fluid mt-4">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="mb-1 text-dark">
+            <i class="bi bi-graph-up me-2 text-primary"></i>FLC Analytics Dashboard
+          </h2>
+          <p class="text-muted mb-0">Complete visibility into your FLC supply chain</p>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-outline-primary" onclick="refreshDashboardData()">
+            <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+          </button>
+          <button class="btn btn-outline-secondary" onclick="exportDashboard()">
+            <i class="bi bi-download me-2"></i>Export
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard Grid -->
+  <div class="row">
+    <!-- Left Column - Key Metrics & Overview -->
+    <div class="col-lg-8">
+      <!-- Real-time FLC Status -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+          <h5 class="mb-0 text-dark">
+            <i class="bi bi-speedometer2 me-2 text-primary"></i>FLC Distribution Overview
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <!-- Supplier -->
+            <div class="col">
+              <div class="position-relative">
+                <div class="p-3 rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-2" style="width: 80px; height: 80px;">
+                  <i class="bi bi-building" style="font-size: 32px;"></i>
+                </div>
+                <div class="position-absolute top-0 start-100 translate-middle">
+                  <span class="badge bg-success">+{{ flc_summary.total_returned }}</span>
+                </div>
+              </div>
+              <h3 class="text-primary mb-1">{{ flc_status_breakdown.at_supplier }}</h3>
+              <small class="text-muted">At Supplier</small>
+              <div class="mt-2">
+                <small class="text-success d-block">+{{ flc_summary.total_returned }} returned</small>
+                <small class="text-danger d-block">-{{ flc_summary.total_sent }} sent</small>
+              </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="col-auto align-self-center">
+              <i class="bi bi-arrow-right text-muted" style="font-size: 32px;"></i>
+            </div>
+
+            <!-- Intermediate -->
+            <div class="col">
+              <div class="position-relative">
+                <div class="p-3 rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center mb-2" style="width: 80px; height: 80px;">
+                  <i class="bi bi-truck" style="font-size: 32px;"></i>
+                </div>
+                <div class="position-absolute top-0 start-100 translate-middle">
+                  <span class="badge bg-danger">-{{ flc_summary.total_delivered }}</span>
+                </div>
+              </div>
+              <h3 class="text-warning mb-1">{{ flc_status_breakdown.with_intermediates }}</h3>
+              <small class="text-muted">With Intermediates</small>
+              <div class="mt-2">
+                <small class="text-success d-block">+{{ flc_summary.total_sent }} received</small>
+                <small class="text-danger d-block">-{{ flc_summary.total_delivered }} delivered</small>
+              </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="col-auto align-self-center">
+              <i class="bi bi-arrow-right text-muted" style="font-size: 32px;"></i>
+            </div>
+
+            <!-- End User -->
+            <div class="col">
+              <div class="position-relative">
+                <div class="p-3 rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center mb-2" style="width: 80px; height: 80px;">
+                  <i class="bi bi-person-check" style="font-size: 32px;"></i>
+                </div>
+                <div class="position-absolute top-0 start-100 translate-middle">
+                  <span class="badge bg-warning">-{{ flc_summary.total_returned }}</span>
+                </div>
+              </div>
+              <h3 class="text-success mb-1">{{ flc_status_breakdown.with_endusers }}</h3>
+              <small class="text-muted">With End Users</small>
+              <div class="mt-2">
+                <small class="text-success d-block">+{{ flc_summary.total_delivered }} delivered</small>
+                <small class="text-danger d-block">-{{ flc_summary.total_returned }} returned</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Utilization Progress -->
+          <div class="row mt-4">
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold">Overall Utilization: {{ flc_summary.utilization_rate }}%</span>
+                <span class="text-muted">{{ flc_summary.at_supplier }} available of {{ flc_summary.baseline }} total</span>
+              </div>
+              <div class="progress" style="height: 12px; border-radius: 10px;">
+                {% set intermediate_percent = (flc_summary.at_intermediate / flc_summary.baseline * 100) if flc_summary.baseline > 0 else 0 %}
+                {% set enduser_percent = (flc_summary.at_enduser / flc_summary.baseline * 100) if flc_summary.baseline > 0 else 0 %}
+                <div class="progress-bar bg-warning" style="width: {{ intermediate_percent }}%" title="In Transit: {{ flc_summary.at_intermediate }} FLCs">
+                </div>
+                <div class="progress-bar bg-success" style="width: {{ enduser_percent }}%" title="With Customers: {{ flc_summary.at_enduser }} FLCs">
+                </div>
+              </div>
+              <div class="d-flex justify-content-between mt-1">
+                <small class="text-warning">{{ flc_summary.at_intermediate }} in transit</small>
+                <small class="text-success">{{ flc_summary.at_enduser }} with customers</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Charts -->
+      <div class="row">
+        <!-- Activity Trend -->
+        <div class="col-md-8 mb-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">30-Day Activity Trend</h6>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary active" onclick="changeChartView('combined')">All</button>
+                <button class="btn btn-outline-secondary" onclick="changeChartView('dispatches')">Dispatches</button>
+                <button class="btn btn-outline-secondary" onclick="changeChartView('returns')">Returns</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <canvas id="activityChart" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Component Utilization -->
+        <div class="col-md-4 mb-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+              <h6 class="mb-0">Component Utilization</h6>
+            </div>
+            <div class="card-body">
+              <canvas id="componentChart" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Distribution -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">FLC Distribution by Users</h6>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-primary active" onclick="showUserDistribution('all')">All</button>
+            <button class="btn btn-outline-primary" onclick="showUserDistribution('intermediates')">Intermediates</button>
+            <button class="btn btn-outline-primary" onclick="showUserDistribution('endusers')">End Users</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <!-- Intermediates -->
+          <div class="user-distribution-section" id="intermediates-distribution">
+            <h6 class="text-warning mb-3">
+              <i class="bi bi-truck me-2"></i>Intermediates ({{ user_distribution.intermediates|length }})
+            </h6>
+            {% if user_distribution.intermediates %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead class="table-warning">
+                  <tr>
+                    <th>Intermediate</th>
+                    <th class="text-center">Components</th>
+                    <th class="text-center">Total FLCs</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in user_distribution.intermediates %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-warning bg-opacity-10 rounded me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                          <i class="bi bi-person text-warning" style="font-size: 16px;"></i>
+                        </div>
+                        <div>
+                          <strong>{{ user.username }}</strong>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      {% for component in user.components %}
+                      <span class="badge bg-light text-dark mb-1">{{ component.name }}: {{ component.flcs }}</span>
+                      {% endfor %}
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-warning fs-6">{{ user.total_flcs }}</span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-success">Active</span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-3">
+              <i class="bi bi-info-circle me-2"></i>
+              No intermediates currently holding FLCs
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- End Users -->
+          <div class="user-distribution-section" id="endusers-distribution">
+            <h6 class="text-success mb-3">
+              <i class="bi bi-person-check me-2"></i>End Users ({{ user_distribution.end_users|length }})
+            </h6>
+            {% if user_distribution.end_users %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead class="table-success">
+                  <tr>
+                    <th>End User</th>
+                    <th>Location</th>
+                    <th class="text-center">Components</th>
+                    <th class="text-center">Total FLCs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in user_distribution.end_users %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-success bg-opacity-10 rounded me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                          <i class="bi bi-person-check text-success" style="font-size: 16px;"></i>
+                        </div>
+                        <div>
+                          <strong>{{ user.name }}</strong>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <small>{{ user.location or 'N/A' }}</small>
+                    </td>
+                    <td class="text-center">
+                      {% for component in user.components %}
+                      <span class="badge bg-light text-dark mb-1">{{ component.name }}: {{ component.flcs }}</span>
+                      {% endfor %}
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-success fs-6">{{ user.total_flcs }}</span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-3">
+              <i class="bi bi-info-circle me-2"></i>
+              No end users currently holding FLCs
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column - Performance & Details -->
+    <div class="col-lg-4">
+      <!-- Key Performance Indicators -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+          <h6 class="mb-0 text-dark">
+            <i class="bi bi-bar-chart me-2 text-primary"></i>Key Metrics
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <!-- Efficiency -->
+            <div class="col-6">
+              <div class="text-center p-3 border rounded">
+                <div class="text-primary mb-2">
+                  <i class="bi bi-speedometer2" style="font-size: 24px;"></i>
+                </div>
+                <h4 class="text-primary mb-1">{{ stats.efficiency }}%</h4>
+                <small class="text-muted">Efficiency</small>
+              </div>
+            </div>
+            
+            <!-- Return Rate -->
+            <div class="col-6">
+              <div class="text-center p-3 border rounded">
+                <div class="text-warning mb-2">
+                  <i class="bi bi-arrow-return-left" style="font-size: 24px;"></i>
+                </div>
+                <h4 class="text-warning mb-1">{{ stats.return_rate }}%</h4>
+                <small class="text-muted">Return Rate</small>
+              </div>
+            </div>
+            
+            <!-- Total Dispatches -->
+            <div class="col-6">
+              <div class="text-center p-3 border rounded">
+                <div class="text-info mb-2">
+                  <i class="bi bi-truck" style="font-size: 24px;"></i>
+                </div>
+                <h4 class="text-info mb-1">{{ stats.total_dispatches }}</h4>
+                <small class="text-muted">Total Dispatches</small>
+              </div>
+            </div>
+            
+            <!-- Active Components -->
+            <div class="col-6">
+              <div class="text-center p-3 border rounded">
+                <div class="text-success mb-2">
+                  <i class="bi bi-gear" style="font-size: 24px;"></i>
+                </div>
+                <h4 class="text-success mb-1">{{ stats.active_components }}</h4>
+                <small class="text-muted">Active Components</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Component Performance -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+          <h6 class="mb-0 text-dark">
+            <i class="bi bi-layers me-2 text-primary"></i>Component Performance
+          </h6>
+        </div>
+        <div class="card-body">
+          {% for comp_name, analytics in component_analytics.items() %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-semibold">{{ comp_name }}</span>
+              <span class="badge {% if analytics.utilization_rate > 80 %}bg-success{% elif analytics.utilization_rate > 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                {{ analytics.utilization_rate }}%
+              </span>
+            </div>
+            <div class="progress mb-2" style="height: 6px;">
+              <div class="progress-bar {% if analytics.utilization_rate > 80 %}bg-success{% elif analytics.utilization_rate > 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                   style="width: {{ analytics.utilization_rate }}%"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted small">
+              <span>Stock: {{ analytics.at_supplier }}</span>
+              <span>In Use: {{ analytics.at_intermediate + analytics.at_enduser }}</span>
+            </div>
+          </div>
+          {% if not loop.last %}<hr class="my-2">{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card shadow-sm">
+        <div class="card-header bg-white">
+          <h6 class="mb-0 text-dark">
+            <i class="bi bi-lightning me-2 text-primary"></i>Quick Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('dispatch_create') }}" class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-plus-circle me-2"></i>Create Dispatch
+            </a>
+            <a href="{{ url_for('returns') }}" class="btn btn-outline-warning btn-sm">
+              <i class="bi bi-arrow-return-left me-2"></i>Record Returns
+            </a>
+            <a href="{{ url_for('components') }}" class="btn btn-outline-info btn-sm">
+              <i class="bi bi-gear me-2"></i>Manage Components
+            </a>
+            <a href="{{ url_for('reports') }}" class="btn btn-outline-success btn-sm">
+              <i class="bi bi-file-text me-2"></i>View Reports
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  // Get chart data from backend
+  const chartData = {{ chart_data|tojson|safe }};
+  
+  console.log('Chart Data:', chartData);
+
+  // Chart instances
+  let activityChart, componentChart;
+
+  // Initialize Activity Chart
+  function initActivityChart() {
+    const ctx = document.getElementById('activityChart');
+    if (!ctx) return;
+
+    try {
+      if (activityChart) activityChart.destroy();
+
+      if (!chartData.dates || chartData.dates.length === 0) {
+        ctx.style.display = 'none';
+        ctx.parentElement.innerHTML = '<div class="text-center text-muted py-4">No activity data available</div>';
+        return;
+      }
+
+      activityChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartData.dates || [],
+          datasets: [
+            {
+              label: 'Dispatches',
+              data: chartData.dispatch_trend || [],
+              borderColor: '#0d6efd',
+              backgroundColor: 'rgba(13, 110, 253, 0.1)',
+              borderWidth: 2,
+              tension: 0.4,
+              fill: true
+            },
+            {
+              label: 'Returns',
+              data: chartData.return_trend || [],
+              borderColor: '#198754',
+              backgroundColor: 'rgba(25, 135, 84, 0.1)',
+              borderWidth: 2,
+              tension: 0.4,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { position: 'top' },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Count' } },
+            x: { title: { display: true, text: 'Date' } }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Activity chart error:', error);
+    }
+  }
+
+  // Initialize Component Chart
+  function initComponentChart() {
+    const ctx = document.getElementById('componentChart');
+    if (!ctx) return;
+
+    try {
+      if (componentChart) componentChart.destroy();
+
+      const componentData = chartData.component_usage || {};
+      const components = componentData.components || [];
+      const utilization = componentData.utilization || [];
+
+      if (components.length === 0) {
+        ctx.style.display = 'none';
+        ctx.parentElement.innerHTML = '<div class="text-center text-muted py-4">No component data</div>';
+        return;
+      }
+
+      componentChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: components,
+          datasets: [{
+            data: utilization,
+            backgroundColor: [
+              '#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1',
+              '#fd7e14', '#20c997', '#e83e8c', '#6c757d', '#0dcaf0'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.label}: ${context.parsed}% utilization`;
+                }
+              }
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Component chart error:', error);
+    }
+  }
+
+  // Chart View Toggle
+  function changeChartView(type) {
+    if (!activityChart) return;
+    
+    document.querySelectorAll('#activityChart').closest('.card').querySelectorAll('.btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    activityChart.data.datasets.forEach(dataset => {
+      if (type === 'combined') {
+        dataset.hidden = false;
+      } else {
+        dataset.hidden = dataset.label.toLowerCase() !== type;
+      }
+    });
+    activityChart.update();
+  }
+
+  // User Distribution Toggle
+  function showUserDistribution(type) {
+    document.querySelectorAll('#user-distribution-section .btn-group .btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    const intermediates = document.getElementById('intermediates-distribution');
+    const endusers = document.getElementById('endusers-distribution');
+    
+    if (type === 'all') {
+      intermediates.style.display = 'block';
+      endusers.style.display = 'block';
+    } else if (type === 'intermediates') {
+      intermediates.style.display = 'block';
+      endusers.style.display = 'none';
+    } else if (type === 'endusers') {
+      intermediates.style.display = 'none';
+      endusers.style.display = 'block';
+    }
+  }
+
+  // Refresh Functionality
+  function refreshDashboardData() {
+    const btn = event.target;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise me-2 spinner-border spinner-border-sm"></i>Refreshing...';
+    btn.disabled = true;
+    
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  }
+
+  // Export Functionality
+  function exportDashboard() {
+    alert('Export functionality would be implemented here');
+    // In a real implementation, this would generate a PDF/Excel report
+  }
+
+  // Initialize on load
+  document.addEventListener('DOMContentLoaded', function() {
+    initActivityChart();
+    initComponentChart();
+    showUserDistribution('all');
+  });
+
+  // Handle resize
+  window.addEventListener('resize', function() {
+    if (activityChart) activityChart.resize();
+    if (componentChart) componentChart.resize();
+  });
+</script>
+
+<style>
+.card {
+  border: none;
+  border-radius: 12px;
+}
+
+.card-header {
+  border-bottom: 1px solid #e9ecef;
+  padding: 1rem 1.25rem;
+}
+
+.avatar-sm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress {
+  border-radius: 10px;
+}
+
+.badge {
+  font-size: 0.75em;
+}
+
+.table th {
+  border-top: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.btn-group .btn.active {
+  background-color: #0d6efd;
+  color: white;
+  border-color: #0d6efd;
+}
+
+.user-distribution-section {
+  transition: all 0.3s ease;
+}
+
+.text-primary { color: #0d6efd !important; }
+.text-warning { color: #ffc107 !important; }
+.text-success { color: #198754 !important; }
+</style>
+{% endblock %}

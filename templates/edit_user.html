@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow">
+    <div class="card-header bg-warning text-white">
+      <h4 class="mb-0">Edit User — {{ user.username }}</h4>
+    </div>
+    <div class="card-body">
+      <form method="POST" class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-control" value="{{ user.username }}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Role</label>
+          <select name="role" class="form-select" >
+            <option value="Intermediate" {% if user.role == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+            <!-- <option value="End User" {% if user.role == 'End User' %}selected{% endif %}>End User</option> -->
+          </select>
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Password (leave blank to keep unchanged)</label>
+          <input type="password" name="password" class="form-control" placeholder="New password">
+        </div>
+
+        <div class="col-12 d-flex justify-content-between">
+          <a href="{{ url_for('manage_users') }}" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-success">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
