@@ -1,50 +1,145 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-  <div class="card shadow">
-    <div class="card-header bg-warning">
-      <h4 class="text-white mb-0">Edit Component</h4>
+<div class="container-fluid py-4">
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h2 text-dark fw-bold mb-2">Edit Component</h1>
+          <p class="text-muted mb-0">Update component details and stock information</p>
+        </div>
+        <a href="{{ url_for('components') }}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left me-2"></i>Back to Components
+        </a>
+      </div>
     </div>
-    <div class="card-body">
-      <form method="POST">
-        <div class="mb-3">
-          <label class="form-label">Component Name</label>
-          <input
-            type="text"
-            name="name"
-            class="form-control"
-            value="{{ component.name }}"
-            required
-          />
-        </div>
+  </div>
 
-        <div class="mb-3">
-          <label class="form-label">Description</label>
-          <textarea name="description" class="form-control" rows="3">{{ component.description }}</textarea>
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="card-title mb-0 text-dark">
+            <i class="bi bi-pencil-square text-warning me-2"></i>
+            Component Details
+          </h5>
         </div>
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Component Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  class="form-control"
+                  value="{{ component.name }}"
+                  placeholder="Enter component name"
+                  required
+                />
+              </div>
 
-        <div class="mb-3">
-          <label class="form-label">Stock Quantity</label>
-          <input
-            type="number"
-            name="flc_stock"
-            class="form-control"
-            value="{{ component.flc_stock }}"
-            min="0"
-            required
-          />
-        </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea 
+                  name="description" 
+                  class="form-control" 
+                  rows="3"
+                  placeholder="Enter component description"
+                >{{ component.description }}</textarea>
+              </div>
 
-        <div class="d-flex justify-content-between">
-          <a href="{{ url_for('components') }}" class="btn btn-secondary">
-            Cancel
-          </a>
-          <button type="submit" class="btn btn-success">
-            ✅ Update Component
-          </button>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Stock Quantity</label>
+                <input
+                  type="number"
+                  name="flc_stock"
+                  class="form-control"
+                  value="{{ component.flc_stock }}"
+                  min="0"
+                  placeholder="Enter stock quantity"
+                  required
+                />
+                <div class="form-text">
+                  Current stock level for this component
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Component ID</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  value="{{ component.id }}"
+                  disabled
+                  readonly
+                />
+                <div class="form-text">
+                  Unique component identifier
+                </div>
+              </div>
+
+              <!-- Additional Info -->
+              <div class="col-12">
+                <div class="card bg-light border-0">
+                  <div class="card-body">
+                    <h6 class="card-title text-dark mb-3">
+                      <i class="bi bi-info-circle text-primary me-2"></i>
+                      Component Information
+                    </h6>
+                    <div class="row">
+                      <div class="col-md-6">
+                        <small class="text-muted">Created Date</small>
+                        <p class="mb-2 fw-semibold">
+                          {{ component.created_at.strftime('%d %b %Y') if component.created_at else 'N/A' }}
+                        </p>
+                      </div>
+                      <div class="col-md-6">
+                        <small class="text-muted">Current Status</small>
+                        <p class="mb-0">
+                          <span class="badge bg-success">Active</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+              <a href="{{ url_for('components') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle me-2"></i>Cancel
+              </a>
+              <button type="submit" class="btn btn-warning">
+                <i class="bi bi-check-circle me-2"></i>Update Component
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
     </div>
   </div>
 </div>
+
+<style>
+.form-control, .form-select {
+  border-radius: 8px;
+}
+
+.btn {
+  border-radius: 8px;
+}
+
+.card {
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+</style>
 {% endblock %}

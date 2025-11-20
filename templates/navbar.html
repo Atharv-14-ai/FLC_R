@@ -1,7 +1,9 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(226, 232, 240, 0.8);">
   <div class="container">
     <!-- Brand -->
-    <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">FLC Tracking</a>
+    <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+      <i class="bi bi-box-seam me-2"></i>FLC Tracking
+    </a>
 
     <!-- Mobile Toggle Button -->
     <button
@@ -12,8 +14,9 @@
       aria-controls="navbarNav"
       aria-expanded="false"
       aria-label="Toggle navigation"
+      style="border-color: #64748b;"
     >
-      <span class="navbar-toggler-icon"></span>
+      <span class="navbar-toggler-icon" style="background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e\");"></span>
     </button>
 
     <!-- Navbar Links -->
@@ -21,50 +24,144 @@
       <ul class="navbar-nav ms-auto">
         {% if session.get('user_id') %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ url_for('dashboard') }}" style="color: #64748b !important;">
+              <i class="bi bi-speedometer2 me-1"></i>Dashboard
+            </a>
           </li>
 
           {% if session.get('role') == 'Supplier' %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('dispatch_create') }}">Create Dispatch</a>
+              <a class="nav-link" href="{{ url_for('dispatch_create') }}" style="color: #64748b !important;">
+                <i class="bi bi-truck me-1"></i>Create Dispatch
+              </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('components') }}">Components</a>
+              <a class="nav-link" href="{{ url_for('components') }}" style="color: #64748b !important;">
+                <i class="bi bi-cpu me-1"></i>Components
+              </a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="color: #64748b !important;">
+                <i class="bi bi-people me-1"></i>Manage Users
+              </a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('manage_users') }}">Intermediates</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('manage_end_users') }}">End Users</a></li>
+              </ul>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('returns') }}">Returns</a>
+              <a class="nav-link" href="{{ url_for('returns') }}" style="color: #64748b !important;">
+                <i class="bi bi-arrow-repeat me-1"></i>Returns
+              </a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('reports') }}">Reports</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('supplier_analytics') }}">Analytics</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="color: #64748b !important;">
+                <i class="bi bi-graph-up me-1"></i>Reports
+              </a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('reports') }}">Basic Reports</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('supplier_analytics') }}">Analytics</a></li>
+              </ul>
             </li>
 
           {% elif session.get('role') == 'Intermediate' %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('dispatch_create') }}">Create Dispatch</a>
+              <a class="nav-link" href="{{ url_for('dispatch_create') }}" style="color: #64748b !important;">
+                <i class="bi bi-truck me-1"></i>Create Dispatch
+              </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('dispatch_receive') }}">Receive</a>
+              <a class="nav-link" href="{{ url_for('dispatch_receive') }}" style="color: #64748b !important;">
+                <i class="bi bi-box-arrow-in-down me-1"></i>Receive
+              </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('reports') }}">Reports</a>
+              <a class="nav-link" href="{{ url_for('reports') }}" style="color: #64748b !important;">
+                <i class="bi bi-graph-up me-1"></i>Reports
+              </a>
             </li>
           {% endif %}
 
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('logout') }}">
-              Logout ({{ session.get('username') }})
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="color: #64748b !important;">
+              <i class="bi bi-person-circle me-1"></i>{{ session.get('username') }}
             </a>
+            <ul class="dropdown-menu">
+              <li><span class="dropdown-item-text small text-muted">Role: {{ session.get('role') }}</span></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+            </ul>
           </li>
 
         {% else %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+            <a class="nav-link" href="{{ url_for('login') }}" style="color: #64748b !important;">
+              <i class="bi bi-box-arrow-in-right me-1"></i>Login
+            </a>
           </li>
         {% endif %}
       </ul>
     </div>
   </div>
 </nav>
+
+<style>
+.navbar {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.nav-link {
+  font-weight: 500;
+  padding: 0.5rem 1rem !important;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  margin: 0 0.25rem;
+}
+
+.nav-link:hover, .nav-link:focus {
+  color: #2563eb !important;
+  background: rgba(37, 99, 235, 0.1);
+  transform: translateY(-1px);
+}
+
+.nav-link.active {
+  color: #2563eb !important;
+  background: rgba(37, 99, 235, 0.15);
+  font-weight: 600;
+}
+
+.dropdown-menu {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.dropdown-item {
+  border-radius: 6px;
+  margin: 0.125rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.navbar-toggler:focus {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    margin-top: 1rem;
+  }
+  
+  .nav-link {
+    margin: 0.125rem 0;
+  }
+}
+</style>

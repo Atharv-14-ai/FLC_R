@@ -3,60 +3,494 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign Up - FLC Tracking</title>
+    <title>Sign Up - FLC Tracking System</title>
+    
+    <!-- Bootstrap CSS -->
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+
+    <style>
+      /* 🎨 Modern Color Palette */
+      :root {
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --primary-light: #3b82f6;
+        --secondary: #64748b;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --dark: #1e293b;
+        --light: #f8fafc;
+        --gradient-primary: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        --gradient-dark: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+
+      /* 🌐 Global Styles */
+      body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+        color: #334155;
+        font-family: 'Inter', sans-serif;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* ✨ Enhanced Cards */
+      .card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-xl);
+        transition: all 0.3s ease;
+        background: white;
+        overflow: hidden;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      }
+
+      /* 🎯 Form Enhancements */
+      .form-control, .form-select {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: white;
+      }
+
+      .form-control:focus, .form-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        transform: translateY(-2px);
+      }
+
+      .form-label {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+      }
+
+      /* 🌈 Enhanced Buttons */
+      .btn {
+        border-radius: 12px;
+        font-weight: 600;
+        padding: 0.875rem 1.5rem;
+        transition: all 0.3s ease;
+        border: none;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn-primary {
+        background: var(--gradient-primary);
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+      }
+
+      .btn-outline-primary {
+        border: 2px solid var(--primary);
+        color: var(--primary);
+        background: transparent;
+        font-weight: 500;
+      }
+
+      .btn-outline-primary:hover {
+        background: var(--primary);
+        color: white;
+        transform: translateY(-2px);
+      }
+
+      /* 🌟 Enhanced Alerts */
+      .alert {
+        border: none;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        font-weight: 500;
+        box-shadow: var(--shadow-lg);
+        backdrop-filter: blur(10px);
+      }
+
+      .alert-success {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
+        border-left: 4px solid var(--success);
+      }
+
+      .alert-danger {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #991b1b;
+        border-left: 4px solid var(--danger);
+      }
+
+      /* 🎭 Custom Utilities */
+      .gradient-text {
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .role-card {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: white;
+      }
+
+      .role-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .role-card.selected {
+        border-color: var(--primary);
+        background: rgba(37, 99, 235, 0.05);
+      }
+
+      .password-strength {
+        height: 4px;
+        border-radius: 2px;
+        margin-top: 0.5rem;
+        transition: all 0.3s ease;
+      }
+
+      .strength-weak {
+        background: var(--danger);
+        width: 25%;
+      }
+
+      .strength-medium {
+        background: var(--warning);
+        width: 50%;
+      }
+
+      .strength-strong {
+        background: var(--success);
+        width: 100%;
+      }
+
+      /* ✨ Animation Keyframes */
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .fade-in-up {
+        animation: fadeInUp 0.6s ease-out;
+      }
+
+      /* 📱 Responsive Design */
+      @media (max-width: 576px) {
+        .card {
+          margin: 1rem;
+          width: auto !important;
+        }
+      }
+    </style>
   </head>
-  <body class="bg-light">
-    <div class="d-flex justify-content-center align-items-center vh-100">
-      <div class="card shadow p-4" style="width: 400px">
-        <h3 class="text-center text-primary mb-3">FLC Tracking</h3>
-        <h5 class="text-center mb-4">Create Account</h5>
 
-        {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-        {% endif %} {% if success %}
-        <div class="alert alert-success">{{ success }}</div>
-        {% endif %}
+  <body>
+    <div class="container-fluid vh-100">
+      <div class="row h-100">
+        <!-- Left Side - Brand/Info Section -->
+        <div class="col-lg-6 d-none d-lg-flex align-items-center justify-content-center bg-primary">
+          <div class="text-white text-center px-5" data-aos="fade-right">
+            <div class="mb-4">
+              <i class="bi bi-shield-check display-1 text-white-50"></i>
+            </div>
+            <h1 class="display-5 fw-bold mb-3">FLC Tracking System</h1>
+            <p class="fs-5 mb-4 opacity-75">
+              Enterprise Supply Chain Management Platform
+            </p>
+            <div class="d-flex justify-content-center gap-4 mt-5">
+              <div class="text-center">
+                <div class="h4 fw-bold">500+</div>
+                <div class="text-white-50">Components Tracked</div>
+              </div>
+              <div class="text-center">
+                <div class="h4 fw-bold">99%</div>
+                <div class="text-white-50">Efficiency Rate</div>
+              </div>
+              <div class="text-center">
+                <div class="h4 fw-bold">24/7</div>
+                <div class="text-white-50">Monitoring</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <form method="POST" action="{{ url_for('signup') }}">
-          <div class="mb-3">
-            <label class="form-label">Username</label>
-            <input
-              type="text"
-              class="form-control"
-              name="username"
-              required
-              placeholder="Choose username"
-            />
+        <!-- Right Side - Signup Form -->
+        <div class="col-lg-6 d-flex align-items-center justify-content-center">
+          <div class="card p-4 fade-in-up" style="width: 420px" data-aos="fade-left">
+            <!-- Header -->
+            <div class="text-center mb-4">
+              <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3">
+                <i class="bi bi-person-plus-fill text-primary fs-2"></i>
+              </div>
+              <h2 class="fw-bold gradient-text mb-2">Create Account</h2>
+              <p class="text-muted">Join the FLC Tracking System today</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% if error %}
+            <div class="alert alert-danger fade-in-up" role="alert">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <span>{{ error }}</span>
+              </div>
+            </div>
+            {% endif %} 
+            
+            {% if success %}
+            <div class="alert alert-success fade-in-up" role="alert">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <span>{{ success }}</span>
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- Signup Form -->
+            <form method="POST" action="{{ url_for('signup') }}" id="signupForm">
+              <div class="mb-3">
+                <label class="form-label">Username</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light border-end-0">
+                    <i class="bi bi-person text-muted"></i>
+                  </span>
+                  <input
+                    type="text"
+                    class="form-control border-start-0"
+                    name="username"
+                    required
+                    placeholder="Enter your username"
+                    id="username"
+                  />
+                </div>
+                <div class="form-text">Choose a unique username</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Password</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light border-end-0">
+                    <i class="bi bi-lock text-muted"></i>
+                  </span>
+                  <input
+                    type="password"
+                    class="form-control border-start-0"
+                    name="password"
+                    required
+                    placeholder="Create a strong password"
+                    id="password"
+                  />
+                  <button class="btn btn-outline-secondary border-start-0" type="button" id="togglePassword">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <div class="password-strength" id="passwordStrength"></div>
+                <div class="form-text">Use 8+ characters with letters and numbers</div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label">Confirm Password</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light border-end-0">
+                    <i class="bi bi-lock-fill text-muted"></i>
+                  </span>
+                  <input
+                    type="password"
+                    class="form-control border-start-0"
+                    name="confirm_password"
+                    required
+                    placeholder="Confirm your password"
+                    id="confirmPassword"
+                  />
+                </div>
+                <div class="form-text text-danger" id="passwordMatch" style="display: none;">
+                  <i class="bi bi-exclamation-circle"></i> Passwords do not match
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label mb-3">Select Your Role</label>
+                <div class="row g-3">
+                  <div class="col-6">
+                    <div class="role-card text-center" data-role="Supplier">
+                      <i class="bi bi-truck display-6 text-primary mb-2"></i>
+                      <h6 class="fw-semibold">Supplier (A)</h6>
+                      <small class="text-muted">Component provider</small>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="role-card text-center" data-role="Intermediate">
+                      <i class="bi bi-building display-6 text-primary mb-2"></i>
+                      <h6 class="fw-semibold">Intermediate (B)</h6>
+                      <small class="text-muted">Distribution hub</small>
+                    </div>
+                  </div>
+                </div>
+                <input type="hidden" name="role" id="selectedRole" required>
+                <div class="form-text text-danger" id="roleError" style="display: none;">
+                  <i class="bi bi-exclamation-circle"></i> Please select a role
+                </div>
+              </div>
+
+              <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="termsCheck" required>
+                <label class="form-check-label small" for="termsCheck">
+                  I agree to the <a href="#" class="text-primary">Terms of Service</a> and <a href="#" class="text-primary">Privacy Policy</a>
+                </label>
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100 py-2 mb-3" id="submitBtn">
+                <i class="bi bi-person-plus me-2"></i>Create Account
+              </button>
+
+              <div class="text-center">
+                <p class="text-muted mb-0">
+                  Already have an account?
+                  <a href="{{ url_for('login') }}" class="text-primary fw-semibold text-decoration-none">
+                    Sign In
+                  </a>
+                </p>
+              </div>
+            </form>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input
-              type="password"
-              class="form-control"
-              name="password"
-              required
-              placeholder="Enter password"
-            />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Role</label>
-            <select name="role" class="form-select" required>
-              <option value="">Select Role</option>
-              <option value="Supplier">Supplier (A)</option>
-              <option value="Intermediate">Intermediate (B)</option>
-            </select>
-          </div>
-          <button type="submit" class="btn btn-primary w-100">Sign Up</button>
-        </form>
-        <p class="text-center mt-3">
-          Already registered?
-          <a href="{{ url_for('login') }}">Login</a>
-        </p>
+        </div>
       </div>
     </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- AOS Animation -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+      AOS.init({
+        duration: 800,
+        once: true,
+        offset: 100
+      });
+
+      // Password visibility toggle
+      document.getElementById('togglePassword').addEventListener('click', function() {
+        const passwordInput = document.getElementById('password');
+        const icon = this.querySelector('i');
+        
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          icon.classList.remove('bi-eye');
+          icon.classList.add('bi-eye-slash');
+        } else {
+          passwordInput.type = 'password';
+          icon.classList.remove('bi-eye-slash');
+          icon.classList.add('bi-eye');
+        }
+      });
+
+      // Password strength indicator
+      document.getElementById('password').addEventListener('input', function() {
+        const password = this.value;
+        const strengthBar = document.getElementById('passwordStrength');
+        
+        let strength = 0;
+        if (password.length >= 8) strength++;
+        if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength++;
+        if (password.match(/\d/)) strength++;
+        if (password.match(/[^a-zA-Z\d]/)) strength++;
+        
+        strengthBar.className = 'password-strength';
+        if (password.length === 0) {
+          strengthBar.style.display = 'none';
+        } else {
+          strengthBar.style.display = 'block';
+          if (strength <= 1) {
+            strengthBar.classList.add('strength-weak');
+          } else if (strength <= 3) {
+            strengthBar.classList.add('strength-medium');
+          } else {
+            strengthBar.classList.add('strength-strong');
+          }
+        }
+      });
+
+      // Password confirmation check
+      document.getElementById('confirmPassword').addEventListener('input', function() {
+        const password = document.getElementById('password').value;
+        const confirmPassword = this.value;
+        const matchMessage = document.getElementById('passwordMatch');
+        
+        if (confirmPassword && password !== confirmPassword) {
+          matchMessage.style.display = 'block';
+        } else {
+          matchMessage.style.display = 'none';
+        }
+      });
+
+      // Role selection
+      const roleCards = document.querySelectorAll('.role-card');
+      const selectedRoleInput = document.getElementById('selectedRole');
+      const roleError = document.getElementById('roleError');
+      
+      roleCards.forEach(card => {
+        card.addEventListener('click', function() {
+          roleCards.forEach(c => c.classList.remove('selected'));
+          this.classList.add('selected');
+          selectedRoleInput.value = this.getAttribute('data-role');
+          roleError.style.display = 'none';
+        });
+      });
+
+      // Form validation
+      document.getElementById('signupForm').addEventListener('submit', function(e) {
+        if (!selectedRoleInput.value) {
+          e.preventDefault();
+          roleError.style.display = 'block';
+          roleCards[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+
+      // Add loading state to submit button
+      document.getElementById('signupForm').addEventListener('submit', function() {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating Account...';
+        submitBtn.disabled = true;
+      });
+    </script>
   </body>
 </html>

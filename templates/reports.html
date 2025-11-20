@@ -1,217 +1,304 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Reports - FLC Tracking</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css"
-    />
-    <style>
-      body {
-        background: linear-gradient(135deg, #001f3f 0%, #003366 50%, #004080 100%);
-        color: #e6f1ff;
-        font-family: "Poppins", sans-serif;
-        min-height: 100vh;
-        overflow-x: hidden;
-      }
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-4">
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h2 text-dark fw-bold mb-2">Reports & Analytics</h1>
+          <p class="text-muted mb-0">Comprehensive view of all transactions and activities</p>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-primary fs-6">{{ role }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      .navbar {
-        background: rgba(0, 15, 40, 0.85);
-        border-bottom: 1px solid rgba(0, 217, 255, 0.3);
-        box-shadow: 0 0 15px rgba(0, 217, 255, 0.15);
-        backdrop-filter: blur(10px);
-      }
-      .navbar-brand {
-        color: #00d9ff !important;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        text-shadow: 0 0 8px rgba(0, 217, 255, 0.4);
-      }
-      .nav-link {
-        color: #cceeff !important;
-        font-weight: 500;
-        transition: 0.3s;
-      }
-      .nav-link:hover {
-        color: #00d9ff !important;
-        text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
-      }
+  <div class="row">
+    <div class="col-12">
+      <!-- Transaction History Card -->
+      <div class="card shadow-sm border-0 mb-4" data-aos="fade-up">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="card-title mb-0 text-dark">
+            <i class="bi bi-clock-history text-primary me-2"></i>
+            Transaction History
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table id="reportTable" class="table table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Type</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Component</th>
+                  <th class="text-center">FLC Qty</th>
+                  <th class="text-center">Returned</th>
+                  <th class="text-center">Pending</th>
+                  <th class="text-center">Status</th>
+                  <th>Date/Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in cycle_report %}
+                <tr data-aos="fade-right" data-aos-delay="{{ loop.index * 50 }}">
+                  <td class="fw-semibold text-primary">#{{ d.id }}</td>
+                  <td>
+                    <span class="badge bg-secondary">
+                      <i class="bi bi-truck me-1"></i>Dispatch
+                    </span>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ d.from_user }}</div>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ d.to_user if d.to_user else d.to_role }}</div>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="bg-info bg-opacity-10 rounded p-2 me-2">
+                        <i class="bi bi-cpu text-info"></i>
+                      </div>
+                      <span class="fw-semibold text-dark">{{ d.component }}</span>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-primary fs-6">{{ d.flc_qty }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-success fs-6">{{ d.returned_qty }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-warning text-dark fs-6">{{ d.pending_qty }}</span>
+                  </td>
+                  <td class="text-center">
+                    {% if d.status == 'Received' %}
+                    <span class="badge bg-success">
+                      <i class="bi bi-check-circle me-1"></i>Received
+                    </span>
+                    {% elif d.status == 'Delivered' %}
+                    <span class="badge bg-info text-dark">
+                      <i class="bi bi-box-seam me-1"></i>Delivered
+                    </span>
+                    {% elif d.status == 'Pending' %}
+                    <span class="badge bg-warning text-dark">
+                      <i class="bi bi-hourglass-split me-1"></i>Pending
+                    </span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ d.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <small class="text-muted">{{ d.date_time.strftime('%d %b %Y, %H:%M') if d.date_time else '-' }}</small>
+                  </td>
+                </tr>
+                {% endfor %}
 
-      main.container {
-        margin-top: 40px;
-        margin-bottom: 50px;
-      }
-
-      footer {
-        background: rgba(0, 15, 40, 0.95);
-        border-top: 1px solid rgba(0, 217, 255, 0.25);
-        color: #9cc9ff;
-        text-align: center;
-        padding: 15px 0;
-        font-size: 0.9rem;
-      }
-
-      .btn-outline-info {
-        border-color: #00d9ff;
-        color: #00d9ff;
-        transition: all 0.3s ease;
-      }
-      .btn-outline-info:hover {
-        background-color: #00d9ff;
-        color: #001f3f;
-        box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
-      }
-    </style>
-  </head>
-
-  <body>
-    {% include 'navbar.html' %}
-
-    <div class="container mt-5 mb-5">
-      <h3 class="text-primary mb-4">📊 Reports ({{ role }})</h3>
-
-      <!-- Transaction History -->
-      <div class="card shadow-sm p-3 mb-4">
-        <h5 class="mb-3">🚚 Transaction History</h5>
-        <div class="table-responsive">
-          <table id="reportTable" class="table table-striped table-hover align-middle">
-            <thead class="table-primary">
-              <tr>
-                <th>ID</th>
-                <th>Type</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Component</th>
-                <th>FLC Qty</th>
-                <th>Returned</th>
-                <th>Pending</th>
-                <th>Status</th>
-                <th>Date/Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for d in cycle_report %}
-              <tr>
-                <td>{{ d.id }}</td>
-                <td><span class="badge bg-secondary">Dispatch</span></td>
-                <td>{{ d.from_user }}</td>
-                <td>{{ d.to_user if d.to_user else d.to_role }}</td>
-                <td>{{ d.component }}</td>
-                <td>{{ d.flc_qty }}</td>
-                <td>{{ d.returned_qty }}</td>
-                <td>{{ d.pending_qty }}</td>
-                <td>
-                  {% if d.status == 'Received' %}
-                  <span class="badge bg-success">Received</span>
-                  {% elif d.status == 'Delivered' %}
-                  <span class="badge bg-info text-dark">Delivered to C</span>
-                  {% elif d.status == 'Pending' %}
-                  <span class="badge bg-warning text-dark">Pending</span>
-                  {% else %}
-                  <span class="badge bg-secondary">{{ d.status }}</span>
-                  {% endif %}
-                </td>
-                <td>{{ d.date_time.strftime('%d-%m-%Y %H:%M') if d.date_time else '-' }}</td>
-              </tr>
-              {% endfor %}
-
-              {% if role == 'Supplier' %}
-              {% for r in supplier_returns %}
-              <tr>
-                <td>{{ r.id }}</td>
-                <td><span class="badge bg-success">Return</span></td>
-                <td>{{ r.from_user.username if r.from_user else 'End User' }}</td>
-                <td>{{ r.to_user.username if r.to_user else 'Supplier' }}</td>
-                <td>
-                  {{ r.component if r.component else (r.related_dispatch.component if r.related_dispatch else '-') }}
-                </td>
-                <td>{{ r.flc_qty or 0 }}</td>
-                <td>{{ r.returned_qty if r.returned_qty is not none else r.flc_qty }}</td>
-                <td>
-                  {% if r.related_dispatch %}
-                    {{ r.related_dispatch.flc_qty - (r.returned_qty or 0) }}
-                  {% else %}
-                    0
-                  {% endif %}
-                </td>
-                <td>
-                  {% if r.status == 'Returned' %}
-                  <span class="badge bg-success">Returned</span>
-                  {% elif r.status == 'Partial' %}
-                  <span class="badge bg-warning text-dark">Partial</span>
-                  {% else %}
-                  <span class="badge bg-secondary">{{ r.status or 'Returned' }}</span>
-                  {% endif %}
-                </td>
-                <td>{{ r.date_time.strftime('%d-%m-%Y %H:%M') if r.date_time else '-' }}</td>
-              </tr>
-              {% endfor %}
-              {% endif %}
-            </tbody>
-          </table>
+                {% if role == 'Supplier' %}
+                {% for r in supplier_returns %}
+                <tr data-aos="fade-right" data-aos-delay="{{ loop.index * 50 }}">
+                  <td class="fw-semibold text-primary">#{{ r.id }}</td>
+                  <td>
+                    <span class="badge bg-success">
+                      <i class="bi bi-arrow-return-left me-1"></i>Return
+                    </span>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ r.from_user.username if r.from_user else 'End User' }}</div>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ r.to_user.username if r.to_user else 'Supplier' }}</div>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="bg-info bg-opacity-10 rounded p-2 me-2">
+                        <i class="bi bi-cpu text-info"></i>
+                      </div>
+                      <span class="fw-semibold text-dark">
+                        {{ r.component if r.component else (r.related_dispatch.component if r.related_dispatch else '-') }}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-primary fs-6">{{ r.flc_qty or 0 }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-success fs-6">{{ r.returned_qty if r.returned_qty is not none else r.flc_qty }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-warning text-dark fs-6">
+                      {% if r.related_dispatch %}
+                        {{ r.related_dispatch.flc_qty - (r.returned_qty or 0) }}
+                      {% else %}
+                        0
+                      {% endif %}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    {% if r.status == 'Returned' %}
+                    <span class="badge bg-success">
+                      <i class="bi bi-check-circle me-1"></i>Returned
+                    </span>
+                    {% elif r.status == 'Partial' %}
+                    <span class="badge bg-warning text-dark">
+                      <i class="bi bi-pie-chart me-1"></i>Partial
+                    </span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ r.status or 'Returned' }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <small class="text-muted">{{ r.date_time.strftime('%d %b %Y, %H:%M') if r.date_time else '-' }}</small>
+                  </td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {% if role == 'Supplier' %}
-      <!-- Pending Returns -->
-      <div class="card shadow-sm p-3 mb-4">
-        <h5>📦 Pending Returns</h5>
-        <ul class="list-group">
+      <!-- Pending Returns Card -->
+      <div class="card shadow-sm border-0 mb-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="card-title mb-0 text-dark">
+            <i class="bi bi-clock text-warning me-2"></i>
+            Pending Returns
+          </h5>
+        </div>
+        <div class="card-body">
           {% if pending_returns %}
-          {% for p in pending_returns %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-              <strong>ID {{ p.id }}</strong> → {{ p.to_user }} <br />
-              <small>FLC: {{ p.flc_qty }}, Returned: {{ p.returned_qty }}</small>
+          <div class="row g-3">
+            {% for p in pending_returns %}
+            <div class="col-md-6 col-lg-4">
+              <div class="card border-warning">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="card-title text-dark mb-0">Dispatch #{{ p.id }}</h6>
+                    <span class="badge bg-warning text-dark">
+                      {{ p.pending_qty }} pending
+                    </span>
+                  </div>
+                  <p class="card-text mb-2">
+                    <small class="text-muted">To: {{ p.to_user }}</small>
+                  </p>
+                  <div class="d-flex justify-content-between text-sm">
+                    <span class="text-muted">FLC: {{ p.flc_qty }}</span>
+                    <span class="text-success">Returned: {{ p.returned_qty }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <span class="badge bg-warning text-dark">Remaining: {{ p.pending_qty }}</span>
-          </li>
-          {% endfor %}
+            {% endfor %}
+          </div>
           {% else %}
-          <li class="list-group-item text-muted text-center">No pending returns</li>
+          <div class="text-center py-4">
+            <i class="bi bi-check-circle display-4 text-success mb-3"></i>
+            <h5 class="text-muted mb-2">No Pending Returns</h5>
+            <p class="text-muted">All returns have been processed successfully.</p>
+          </div>
           {% endif %}
-        </ul>
+        </div>
       </div>
       {% endif %}
 
-      <!-- Remarks -->
-      <div class="card shadow-sm p-3">
-        <h5>🧾 Remarks</h5>
-        {% if remarks %}
-        <ul class="list-group">
-          {% for r in remarks %}
-          <li class="list-group-item">
-            <strong>{{ r.type }} #{{ r.id }}:</strong> {{ r.remarks }}
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted">No remarks recorded.</p>
-        {% endif %}
+      <!-- Remarks Card -->
+      <div class="card shadow-sm border-0" data-aos="fade-up" data-aos-delay="200">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="card-title mb-0 text-dark">
+            <i class="bi bi-chat-left-text text-info me-2"></i>
+            Remarks & Notes
+          </h5>
+        </div>
+        <div class="card-body">
+          {% if remarks %}
+          <div class="row g-3">
+            {% for r in remarks %}
+            <div class="col-12">
+              <div class="card bg-light border-0">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="badge 
+                      {% if r.type == 'Dispatch' %}bg-primary
+                      {% elif r.type == 'Return' %}bg-success
+                      {% else %}bg-secondary{% endif %}">
+                      {{ r.type }} #{{ r.id }}
+                    </span>
+                    <small class="text-muted">Remarks</small>
+                  </div>
+                  <p class="card-text text-dark mb-0">{{ r.remarks }}</p>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-4">
+            <i class="bi bi-chat-left display-4 text-muted mb-3"></i>
+            <h5 class="text-muted mb-2">No Remarks Recorded</h5>
+            <p class="text-muted">Remarks will appear here when added to transactions.</p>
+          </div>
+          {% endif %}
+        </div>
       </div>
     </div>
+  </div>
+</div>
 
-    <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
-    <script>
-      $(document).ready(function () {
-        $("#reportTable").DataTable({
-          order: [[0, "desc"]],
-          pageLength: 10,
-          language: {
-            search: "_INPUT_",
-            searchPlaceholder: "Search transactions...",
-          },
-        });
-      });
-    </script>
-  </body>
-</html>
+<style>
+.table tbody tr {
+  transition: all 0.3s ease;
+}
+
+.table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.04) !important;
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.card.border-warning {
+  transition: all 0.3s ease;
+}
+
+.card.border-warning:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+</style>
+
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" />
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function () {
+  $("#reportTable").DataTable({
+    order: [[0, "desc"]],
+    pageLength: 10,
+    language: {
+      search: "_INPUT_",
+      searchPlaceholder: "Search transactions...",
+      lengthMenu: "Show _MENU_ entries",
+      info: "Showing _START_ to _END_ of _TOTAL_ entries",
+      paginate: {
+        previous: "<i class='bi bi-chevron-left'></i>",
+        next: "<i class='bi bi-chevron-right'></i>"
+      }
+    },
+    responsive: true
+  });
+});
+</script>
+{% endblock %}

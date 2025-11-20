@@ -1,147 +1,416 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-  <h3>Create Dispatch</h3>
-  <hr />
-
-  <form method="POST">
-    {% if role == "Supplier" %}
-    <!-- Supplier (A → B) -->
-    <div class="mb-3">
-      <label class="form-label">Select Intermediate</label>
-      <select name="to_user" class="form-select" required>
-        <option value="">-- Select Intermediate --</option>
-        {% for u in users %}
-        <option value="{{ u.id }}">{{ u.username }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div id="flc-section">
-      <div class="flc-item border rounded p-3 mb-3">
-        <div class="row g-2">
-          <div class="col-md-3">
-            <label class="form-label">Select Component</label>
-            <select name="component_id[]" class="form-select component-select" required>
-              <option value="">-- Select Component --</option>
-              {% for comp in components %}
-              <option value="{{ comp.id }}" data-stock="{{ comp.flc_stock }}">{{ comp.name }} </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">FLC Qty</label>
-            <input type="number" name="flc_qty[]" class="form-control flc-input" min="1" required>
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Component Qty</label>
-            <input type="number" name="component_qty[]" class="form-control" min="1" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Remarks</label>
-            <input type="text" name="remarks[]" class="form-control">
-          </div>
-          <div class="col-md-1 d-flex align-items-end">
-            <button type="button" class="btn btn-danger remove-flc w-100">×</button>
-          </div>
+<div class="container-fluid py-4">
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h2 text-dark fw-bold mb-2 gradient-text">
+            <i class="bi bi-truck me-2"></i>Create Dispatch
+          </h1>
+          <p class="text-muted mb-0">
+            {{ "Create new dispatches to Intermediates" if role == "Supplier" else "Create dispatches to End Users" }}
+          </p>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+          </a>
+          <button class="btn btn-outline-primary" onclick="showHelpModal()">
+            <i class="bi bi-question-circle me-2"></i>Help
+          </button>
         </div>
       </div>
     </div>
+  </div>
 
-    <button type="button" id="add-flc" class="btn btn-outline-primary mb-3">+ Add Another FLC</button>
-    {% endif %}
-
-    {% if role == "Intermediate" %}
-    <div class="mb-3">
-      <h5>Select Available Dispatches (from Supplier)</h5>
-    </div>
-
-    <div id="dispatch-section">
-      <div class="dispatch-block border rounded p-3 mb-4">
-        <div class="mb-3">
-          <label class="form-label">Select Parent Dispatch</label>
-          <select name="parent_dispatch_id[]" class="form-select parent-select" required>
-            <option value="">-- Select Dispatch --</option>
-            {% for d, avail in parent_dispatches %}
-            <option value="{{ d.id }}" data-component="{{ d.component }}" data-available="{{ avail }}">
-              Dispatch #{{ d.id }} - {{ d.component }} | Avail: {{ avail }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="child-section">
-          <div class="enduser-item border rounded p-2 mb-2">
-            <div class="row g-2">
-              <div class="col-md-3">
-                <label class="form-label">End User</label>
-                <select class="form-select end-user-select" required>
-                  <option value="">-- Select End User --</option>
-                  {% for e in users %}
-                  <option value="{{ e.id }}">{{ e.name }}{% if e.location %} ({{ e.location }}){% endif %}</option>
-                  {% endfor %}
-                </select>
+  <div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-9">
+      <!-- Progress Indicator -->
+      <div class="card shadow-sm border-0 mb-4" data-aos="fade-up">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="text-center flex-fill position-relative">
+              <div class="step-indicator active">
+                <div class="step-icon bg-primary text-white">
+                  <i class="bi bi-pencil"></i>
+                </div>
               </div>
-              <div class="col-md-2">
-                <label class="form-label">FLC Qty</label>
-                <input type="number" class="form-control flc-input" min="1" required>
+              <h6 class="mt-2 mb-0 fw-semibold">Create Dispatch</h6>
+              <small class="text-muted">Enter dispatch details</small>
+            </div>
+            <div class="flex-fill">
+              <div class="progress-line active"></div>
+            </div>
+            <div class="text-center flex-fill position-relative">
+              <div class="step-indicator">
+                <div class="step-icon bg-light text-muted">
+                  <i class="bi bi-check"></i>
+                </div>
               </div>
-              <div class="col-md-2">
-                <label class="form-label">Component Qty</label>
-                <input type="number" class="form-control comp-input" min="1" required>
+              <h6 class="mt-2 mb-0 text-muted">Review</h6>
+              <small class="text-muted">Confirm details</small>
+            </div>
+            <div class="flex-fill">
+              <div class="progress-line"></div>
+            </div>
+            <div class="text-center flex-fill position-relative">
+              <div class="step-indicator">
+                <div class="step-icon bg-light text-muted">
+                  <i class="bi bi-send"></i>
+                </div>
               </div>
-              <div class="col-md-3">
-                <label class="form-label">Remarks</label>
-                <input type="text" class="form-control remark-input">
-              </div>
-              <div class="col-md-2 d-flex align-items-end">
-                <button type="button" class="btn btn-danger remove-enduser w-100">×</button>
-              </div>
+              <h6 class="mt-2 mb-0 text-muted">Complete</h6>
+              <small class="text-muted">Dispatch created</small>
             </div>
           </div>
         </div>
+      </div>
 
-        <button type="button" class="btn btn-outline-secondary add-enduser">+ Add End User</button>
-        <hr />
-        <button type="button" class="btn btn-danger remove-dispatch">Remove Dispatch</button>
+      <!-- Main Form Card -->
+      <div class="card shadow-sm border-0" data-aos="fade-up" data-aos-delay="100">
+        <div class="card-header bg-transparent border-0 pb-0">
+          <h5 class="card-title mb-0 text-dark fw-semibold">
+            <i class="bi bi-clipboard-data text-primary me-2"></i>
+            Dispatch Details
+          </h5>
+        </div>
+        <div class="card-body">
+          <form method="POST" id="dispatchForm" onsubmit="return handleFormSubmit(event)">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            {% if role == "Supplier" %}
+            <!-- Supplier (A → B) -->
+            <div class="mb-4">
+              <label class="form-label fw-semibold text-dark mb-3">
+                <i class="bi bi-building me-2 text-primary"></i>Select Intermediate
+              </label>
+              <select name="to_user" class="form-select form-select-lg" required>
+                <option value="">-- Select Intermediate User --</option>
+                {% for u in users %}
+                <option value="{{ u.id }}">{{ u.username }}</option>
+                {% endfor %}
+              </select>
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                Choose the intermediate user who will receive this dispatch
+              </div>
+            </div>
+
+            <!-- Inventory Alert -->
+            <div class="alert alert-info mb-4">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <i class="bi bi-box-seam me-2"></i>
+                  <strong>Available Inventory:</strong> 
+                  <span class="badge bg-primary ms-2">{{ available_flcs }} FLCs</span>
+                </div>
+                <small class="text-muted">
+                  Total FLCs available for dispatch
+                </small>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="text-dark mb-0 fw-semibold">
+                  <i class="bi bi-box-seam text-primary me-2"></i>
+                  FLC Items
+                </h6>
+                <span class="badge bg-primary" id="item-count">1 item</span>
+              </div>
+              
+              <div id="flc-section">
+                <div class="flc-item card border mb-3 animate__animated animate__fadeIn">
+                  <div class="card-header bg-light border-bottom py-3">
+                    <h6 class="mb-0 text-dark">
+                      <i class="bi bi-box me-2 text-primary"></i>
+                      Item #1
+                    </h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row g-3">
+                      <div class="col-md-4">
+                        <label class="form-label fw-semibold">Component</label>
+                        <select name="component_id[]" class="form-select component-select" required>
+                          <option value="">-- Select Component --</option>
+                          {% for comp in component_stocks %}
+                          <option value="{{ comp.id }}" data-stock="{{ comp.available_stock }}">
+                            {{ comp.name }} (Stock: {{ comp.available_stock }})
+                          </option>
+                          {% endfor %}
+                        </select>
+                        <div class="form-text component-stock text-muted small mt-1">
+                          Component stock: Please select a component
+                        </div>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label fw-semibold">FLC Qty</label>
+                        <input type="number" name="flc_qty[]" class="form-control flc-input" min="1" required>
+                        <div class="form-text flc-max text-muted small mt-1">
+                          Maximum: -
+                        </div>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label fw-semibold">Comp Qty</label>
+                        <input type="number" name="component_qty[]" class="form-control" min="1" required>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label fw-semibold">Remarks</label>
+                        <input type="text" name="remarks[]" class="form-control" placeholder="Optional remarks">
+                      </div>
+                      <div class="col-md-1 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-danger remove-flc w-100" title="Remove Item" disabled>
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" id="add-flc" class="btn btn-outline-primary mt-2">
+                <i class="bi bi-plus-circle me-2"></i>Add Another Item
+              </button>
+
+              <!-- Inventory Validation Alert -->
+              <div id="inventory-alert" class="alert alert-info mt-3" style="display: none;">
+                <i class="bi bi-info-circle me-2"></i>
+                Inventory check will appear here
+              </div>
+            </div>
+            {% endif %}
+
+            {% if role == "Intermediate" %}
+            <!-- Intermediate Section -->
+            <div class="mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="text-dark mb-0 fw-semibold">
+                  <i class="bi bi-box-arrow-up text-primary me-2"></i>
+                  Available Dispatches from Supplier
+                </h6>
+                <span class="badge bg-primary" id="dispatch-count">1 dispatch</span>
+              </div>
+              
+              <div id="dispatch-section">
+                <div class="dispatch-block card border mb-4 animate__animated animate__fadeIn">
+                  <div class="card-header bg-light border-bottom py-3">
+                    <h6 class="mb-0 text-dark">
+                      <i class="bi bi-truck me-2 text-primary"></i>
+                      Dispatch Block #1
+                    </h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-4">
+                      <label class="form-label fw-semibold">Select Parent Dispatch</label>
+                      <select name="parent_dispatch_id[]" class="form-select parent-select" required>
+                        <option value="">-- Select Source Dispatch --</option>
+                        {% for d in parent_dispatches %}
+                        <option value="{{ d.dispatch.id }}" data-component="{{ d.component }}" data-available="{{ d.available }}">
+                          Dispatch #{{ d.dispatch.id }} - {{ d.component }} | Available: {{ d.available }}
+                        </option>
+                        {% endfor %}
+                      </select>
+                      <div class="form-text available-stock text-muted small mt-1">
+                        Available quantity: Please select a dispatch
+                      </div>
+                    </div>
+
+                    <div class="child-section">
+                      <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <h6 class="text-dark mb-0 fw-semibold">
+                            <i class="bi bi-person me-2 text-success"></i>
+                            End Users
+                          </h6>
+                          <span class="badge bg-success" id="enduser-count-1">1 user</span>
+                        </div>
+                      </div>
+                      
+                      <div class="enduser-item card border mb-3">
+                        <div class="card-body">
+                          <div class="row g-3">
+                            <div class="col-md-4">
+                              <label class="form-label fw-semibold">End User</label>
+                              <select class="form-select end-user-select" required>
+                                <option value="">-- Select End User --</option>
+                                {% for e in users %}
+                                <option value="{{ e.id }}">
+                                  {{ e.name }}{% if e.location %} ({{ e.location }}){% endif %}
+                                </option>
+                                {% endfor %}
+                              </select>
+                            </div>
+                            <div class="col-md-2">
+                              <label class="form-label fw-semibold">FLC Qty</label>
+                              <input type="number" class="form-control flc-input" min="1" required>
+                              <div class="form-text flc-max text-muted small mt-1">
+                                Maximum: -
+                              </div>
+                            </div>
+                            <div class="col-md-2">
+                              <label class="form-label fw-semibold">Comp Qty</label>
+                              <input type="number" class="form-control comp-input" min="1" required>
+                            </div>
+                            <div class="col-md-3">
+                              <label class="form-label fw-semibold">Remarks</label>
+                              <input type="text" class="form-control remark-input" placeholder="Optional remarks">
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                              <button type="button" class="btn btn-outline-danger remove-enduser w-100" title="Remove End User" disabled>
+                                <i class="bi bi-trash"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                      <button type="button" class="btn btn-outline-success add-enduser">
+                        <i class="bi bi-person-plus me-2"></i>Add End User
+                      </button>
+                      <button type="button" class="btn btn-outline-danger remove-dispatch">
+                        <i class="bi bi-x-circle me-2"></i>Remove Dispatch
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" id="add-dispatch" class="btn btn-outline-primary mt-2">
+                <i class="bi bi-plus-circle me-2"></i>Add Another Dispatch
+              </button>
+            </div>
+            {% endif %}
+
+            <!-- Hidden JSON field for Intermediate submissions -->
+            <input type="hidden" name="dispatch_data" id="dispatch_data">
+
+            <!-- Summary Section -->
+            <div class="card border-primary mt-4" id="summary-section" style="display: none;">
+              <div class="card-header bg-primary text-white">
+                <h6 class="mb-0">
+                  <i class="bi bi-list-check me-2"></i>
+                  Dispatch Summary
+                </h6>
+              </div>
+              <div class="card-body">
+                <div id="summary-content"></div>
+              </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="d-flex gap-2 mt-4 pt-4 border-top">
+              <button class="btn btn-primary px-4 py-2" type="submit">
+                <i class="bi bi-check-circle me-2"></i>Create Dispatch
+              </button>
+              <button type="button" class="btn btn-outline-info px-4 py-2" onclick="showSummary()">
+                <i class="bi bi-eye me-2"></i>Preview
+              </button>
+              <button type="button" class="btn btn-outline-warning px-4 py-2" onclick="debugFormData()">
+                <i class="bi bi-bug me-2"></i>Debug
+              </button>
+              <a class="btn btn-outline-secondary px-4 py-2" href="{{ url_for('dashboard') }}">
+                <i class="bi bi-x-circle me-2"></i>Cancel
+              </a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
+  </div>
+</div>
 
-    <button type="button" id="add-dispatch" class="btn btn-outline-primary mb-3">+ Add Another Dispatch</button>
-    {% endif %}
-
-    <!-- hidden JSON field used for Intermediate submissions -->
-    <input type="hidden" name="dispatch_data" id="dispatch_data">
-
-    <div class="mt-3">
-      <button class="btn btn-primary" type="submit" onclick="prepareData()">Create Dispatch</button>
-      <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Cancel</a>
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-question-circle text-primary me-2"></i>
+          Dispatch Creation Help
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if role == "Supplier" %}
+        <h6>Creating Dispatches as Supplier</h6>
+        <ul class="mb-3">
+          <li>Select an intermediate user who will receive the components</li>
+          <li>Add one or more items to the dispatch</li>
+          <li>For each item, select the component and specify quantities</li>
+          <li>FLC Quantity represents the number of FLC units</li>
+          <li>Component Quantity represents the actual component count</li>
+          <li>You can add remarks for each item if needed</li>
+          <li><strong>Note:</strong> Total FLC quantity cannot exceed available inventory ({{ available_flcs }})</li>
+        </ul>
+        {% else %}
+        <h6>Creating Dispatches as Intermediate</h6>
+        <ul class="mb-3">
+          <li>Select from available dispatches you received from suppliers</li>
+          <li>For each source dispatch, add end users who will receive components</li>
+          <li>Specify quantities for each end user</li>
+          <li>The total quantity cannot exceed available stock from the source</li>
+          <li>You can distribute one source dispatch to multiple end users</li>
+        </ul>
+        {% endif %}
+        <div class="alert alert-info">
+          <i class="bi bi-lightbulb me-2"></i>
+          <strong>Tip:</strong> Use the preview button to review your dispatch before submitting.
+        </div>
+      </div>
     </div>
-  </form>
+  </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  let itemCounter = 1;
+  let dispatchCounter = 1;
+  let endUserCounters = {1: 1};
 
   // ---------- SUPPLIER SECTION ----------
   const addFlcBtn = document.getElementById('add-flc');
   if (addFlcBtn) {
     addFlcBtn.addEventListener('click', () => {
       const section = document.getElementById('flc-section');
+      itemCounter++;
       const clone = section.children[0].cloneNode(true);
-      // reset values
+      
+      // Update item number
+      const header = clone.querySelector('.card-header h6');
+      header.innerHTML = `<i class="bi bi-box me-2 text-primary"></i>Item #${itemCounter}`;
+      
+      // Reset values
       clone.querySelectorAll('input').forEach(i => i.value = '');
       clone.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+      clone.querySelector('.remove-flc').disabled = false;
+      
+      // Add animation
+      clone.classList.add('animate__fadeIn');
       section.appendChild(clone);
+      
+      updateItemCount();
+      updateInventoryValidation();
     });
   }
 
   // Remove FLC row (Supplier)
   document.addEventListener('click', e => {
-    if (e.target.classList.contains('remove-flc')) {
-      const block = e.target.closest('.flc-item');
+    if (e.target.classList.contains('remove-flc') || e.target.closest('.remove-flc')) {
+      const btn = e.target.classList.contains('remove-flc') ? e.target : e.target.closest('.remove-flc');
+      const block = btn.closest('.flc-item');
       const section = document.getElementById('flc-section');
-      if (block && section && section.children.length > 1) block.remove();
+      if (block && section && section.children.length > 1) {
+        block.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          block.remove();
+          updateItemCount();
+          updateInventoryValidation();
+        }, 300);
+      }
     }
   });
 
@@ -152,10 +421,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const stock = parseInt(sel.options[sel.selectedIndex].dataset.stock || 0);
       const row = sel.closest('.flc-item');
       const qtyInput = row.querySelector('.flc-input');
-      if (qtyInput) {
+      const stockText = row.querySelector('.component-stock');
+      const maxText = row.querySelector('.flc-max');
+      
+      if (stockText) {
+        stockText.textContent = `Component stock: ${stock}`;
+        stockText.className = `form-text component-stock ${stock > 0 ? 'text-success' : 'text-danger'} small mt-1`;
+      }
+      
+      if (qtyInput && maxText) {
         qtyInput.max = stock;
         qtyInput.placeholder = `Max: ${stock}`;
+        maxText.textContent = `Maximum: ${stock}`;
+        maxText.className = `form-text flc-max ${stock > 0 ? 'text-success' : 'text-danger'} small mt-1`;
+        
+        if (parseInt(qtyInput.value) > stock) {
+          qtyInput.value = stock;
+        }
       }
+      updateInventoryValidation();
     }
   });
 
@@ -167,91 +451,663 @@ document.addEventListener('DOMContentLoaded', () => {
     const addDispatchBtn = document.getElementById('add-dispatch');
     if (addDispatchBtn) {
       addDispatchBtn.addEventListener('click', () => {
+        dispatchCounter++;
+        endUserCounters[dispatchCounter] = 1;
         const clone = dispatchSection.children[0].cloneNode(true);
+        
+        // Update dispatch number
+        const header = clone.querySelector('.card-header h6');
+        header.innerHTML = `<i class="bi bi-truck me-2 text-primary"></i>Dispatch Block #${dispatchCounter}`;
+        
+        // Reset values
         clone.querySelectorAll('input').forEach(i => i.value = '');
         clone.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+        clone.querySelector('.remove-dispatch').disabled = false;
+        
+        // Update end user counter ID
+        const endUserBadge = clone.querySelector('[id^="enduser-count-"]');
+        if (endUserBadge) {
+          endUserBadge.id = `enduser-count-${dispatchCounter}`;
+          endUserBadge.textContent = '1 user';
+        }
+        
+        // Add animation
+        clone.classList.add('animate__fadeIn');
         dispatchSection.appendChild(clone);
+        
+        updateDispatchCount();
       });
     }
 
     // nested controls for end users
     document.addEventListener('click', e => {
       // Add End User inside that dispatch block
-      if (e.target.classList.contains('add-enduser')) {
-        const parentBlock = e.target.closest('.dispatch-block');
+      if (e.target.classList.contains('add-enduser') || e.target.closest('.add-enduser')) {
+        const btn = e.target.classList.contains('add-enduser') ? e.target : e.target.closest('.add-enduser');
+        const parentBlock = btn.closest('.dispatch-block');
         const section = parentBlock.querySelector('.child-section');
-        const clone = section.children[0].cloneNode(true);
+        const dispatchId = Array.from(dispatchSection.children).indexOf(parentBlock) + 1;
+        
+        endUserCounters[dispatchId]++;
+        const clone = section.querySelector('.enduser-item').cloneNode(true);
+        
+        // Reset values
         clone.querySelectorAll('input').forEach(i => i.value = '');
         clone.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+        clone.querySelector('.remove-enduser').disabled = false;
+        
         section.appendChild(clone);
+        updateEndUserCount(dispatchId);
       }
 
       // Remove End User
-      if (e.target.classList.contains('remove-enduser')) {
-        const item = e.target.closest('.enduser-item');
-        const section = e.target.closest('.child-section');
-        if (section && section.children.length > 1) item.remove();
+      if (e.target.classList.contains('remove-enduser') || e.target.closest('.remove-enduser')) {
+        const btn = e.target.classList.contains('remove-enduser') ? e.target : e.target.closest('.remove-enduser');
+        const item = btn.closest('.enduser-item');
+        const section = btn.closest('.child-section');
+        const parentBlock = btn.closest('.dispatch-block');
+        const dispatchId = Array.from(dispatchSection.children).indexOf(parentBlock) + 1;
+        
+        if (section && section.querySelectorAll('.enduser-item').length > 1) {
+          item.classList.add('animate__fadeOut');
+          setTimeout(() => {
+            item.remove();
+            updateEndUserCount(dispatchId);
+          }, 300);
+        }
       }
 
       // Remove Dispatch block
-      if (e.target.classList.contains('remove-dispatch')) {
-        const block = e.target.closest('.dispatch-block');
-        if (dispatchSection.children.length > 1) block.remove();
+      if (e.target.classList.contains('remove-dispatch') || e.target.closest('.remove-dispatch')) {
+        const btn = e.target.classList.contains('remove-dispatch') ? e.target : e.target.closest('.remove-dispatch');
+        const block = btn.closest('.dispatch-block');
+        if (dispatchSection.children.length > 1) {
+          block.classList.add('animate__fadeOut');
+          setTimeout(() => {
+            block.remove();
+            updateDispatchCount();
+          }, 300);
+        }
       }
     });
 
-    // auto-fill component when parent dispatch changes (showing component name in child rows for clarity)
+    // auto-fill component when parent dispatch changes
     document.addEventListener('change', e => {
       if (e.target.classList.contains('parent-select')) {
         const opt = e.target.options[e.target.selectedIndex];
         const compName = opt ? opt.dataset.component || '' : '';
         const available = opt ? parseInt(opt.dataset.available || 0) : 0;
         const parentBlock = e.target.closest('.dispatch-block');
+        const stockText = parentBlock.querySelector('.available-stock');
+        
+        if (stockText) {
+          stockText.textContent = `Available quantity: ${available}`;
+          stockText.className = `form-text available-stock ${available > 0 ? 'text-success' : 'text-danger'} small mt-1`;
+        }
+        
         // set placeholder / helper on each FLC input in this block
         parentBlock.querySelectorAll('.flc-input').forEach(inp => {
           inp.max = available;
           inp.placeholder = `Max: ${available}`;
+          const maxText = inp.parentElement.querySelector('.flc-max');
+          if (maxText) {
+            maxText.textContent = `Maximum: ${available}`;
+            maxText.className = `form-text flc-max ${available > 0 ? 'text-success' : 'text-danger'} small mt-1`;
+          }
         });
       }
     });
   }
 
-});
+  function updateItemCount() {
+    const count = document.querySelectorAll('.flc-item').length;
+    const badge = document.getElementById('item-count');
+    if (badge) badge.textContent = `${count} item${count !== 1 ? 's' : ''}`;
+  }
 
-// prepare nested JSON for intermediate submission
-function prepareData() {
-  // If role is intermediate, pack dispatch blocks into JSON
-  const dispatchBlocks = document.querySelectorAll('.dispatch-block');
-  const data = {};
+  function updateDispatchCount() {
+    const count = document.querySelectorAll('.dispatch-block').length;
+    const badge = document.getElementById('dispatch-count');
+    if (badge) badge.textContent = `${count} dispatch${count !== 1 ? 'es' : ''}`;
+  }
 
-  dispatchBlocks.forEach(block => {
-    const parentSelect = block.querySelector('.parent-select');
-    if (!parentSelect) return;
-    const parentId = parentSelect.value;
-    if (!parentId) return;
+  function updateEndUserCount(dispatchId) {
+    const parentBlock = dispatchSection.children[dispatchId - 1];
+    const count = parentBlock.querySelectorAll('.enduser-item').length;
+    const badge = document.getElementById(`enduser-count-${dispatchId}`);
+    if (badge) badge.textContent = `${count} user${count !== 1 ? 's' : ''}`;
+  }
 
-    const entries = [];
-    block.querySelectorAll('.enduser-item').forEach(item => {
-      const endUserId = item.querySelector('.end-user-select')?.value;
-      const flcQty = item.querySelector('.flc-input')?.value;
-      const compQty = item.querySelector('.comp-input')?.value;
-      const remarks = item.querySelector('.remark-input')?.value;
-      if (endUserId && flcQty && compQty) {
-        entries.push({
-          end_user_id: endUserId,
-          flc_qty: flcQty,
-          component_qty: compQty,
-          remarks: remarks || ''
-        });
-      }
+  // Inventory Validation for Supplier
+  function updateInventoryValidation() {
+    {% if role == "Supplier" %}
+    const totalInventory = {{ available_flcs }};
+    let totalRequested = 0;
+    
+    document.querySelectorAll('.flc-input').forEach(input => {
+      totalRequested += parseInt(input.value) || 0;
     });
+    
+    const remaining = totalInventory - totalRequested;
+    const inventoryAlert = document.getElementById('inventory-alert');
+    
+    if (inventoryAlert) {
+      if (remaining < 0) {
+        inventoryAlert.innerHTML = `
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <strong>Over budget!</strong> You're requesting ${Math.abs(remaining)} more FLCs than available
+        `;
+        inventoryAlert.className = 'alert alert-danger';
+      } else if (remaining === 0) {
+        inventoryAlert.innerHTML = `
+          <i class="bi bi-check-circle me-2"></i>
+          <strong>Inventory check:</strong> All ${totalInventory} FLCs allocated
+        `;
+        inventoryAlert.className = 'alert alert-warning';
+      } else {
+        inventoryAlert.innerHTML = `
+          <i class="bi bi-check-circle me-2"></i>
+          <strong>Inventory check:</strong> ${remaining} FLCs remaining (${totalRequested} requested)
+        `;
+        inventoryAlert.className = 'alert alert-success';
+      }
+      inventoryAlert.style.display = 'block';
+    }
+    {% endif %}
+  }
 
-    if (entries.length) data[parentId] = entries;
+  // Show inventory alert when user starts typing
+  document.addEventListener('input', e => {
+    if (e.target.classList.contains('flc-input')) {
+      updateInventoryValidation();
+    }
   });
 
-  const hidden = document.getElementById('dispatch_data');
-  if (hidden) hidden.value = JSON.stringify(data);
+  // Initialize inventory validation
+  updateInventoryValidation();
+
+  // Add form submit event listener
+  const form = document.getElementById('dispatchForm');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      console.log('Form submit event triggered');
+      if (!handleFormSubmit(e)) {
+        e.preventDefault();
+        return false;
+      }
+    });
+  }
+});
+
+// prepare nested JSON for intermediate submission - FIXED VERSION
+function prepareData() {
+    console.log('prepareData() called - Role:', '{{ role }}');
+    
+    // If role is intermediate, pack dispatch blocks into JSON
+    {% if role == "Intermediate" %}
+    const dispatchBlocks = document.querySelectorAll('.dispatch-block');
+    const data = {};
+    let hasValidData = false;
+
+    console.log('Processing', dispatchBlocks.length, 'dispatch blocks');
+
+    dispatchBlocks.forEach((block, blockIndex) => {
+        const parentSelect = block.querySelector('.parent-select');
+        if (!parentSelect || !parentSelect.value) {
+            console.log('Block', blockIndex + 1, ': No parent selected');
+            return;
+        }
+        
+        const parentId = parentSelect.value;
+        const entries = [];
+        
+        console.log('Block', blockIndex + 1, ': Parent ID', parentId);
+        
+        // Get all end user items in this block
+        const endUserItems = block.querySelectorAll('.enduser-item');
+        console.log(`Found ${endUserItems.length} end user items in block ${blockIndex + 1}`);
+        
+        endUserItems.forEach((item, itemIndex) => {
+            // FIXED: Use the correct selector - the select has class 'end-user-select'
+            const endUserSelect = item.querySelector('select.end-user-select');
+            const flcInput = item.querySelector('input.flc-input');
+            const compInput = item.querySelector('input.comp-input');
+            const remarkInput = item.querySelector('input.remark-input');
+            
+            console.log(`Processing item ${itemIndex + 1}:`, {
+                endUserSelect: !!endUserSelect,
+                flcInput: !!flcInput,
+                compInput: !!compInput,
+                remarkInput: !!remarkInput
+            });
+            
+            const endUserId = endUserSelect ? endUserSelect.value : null;
+            const flcQty = flcInput ? flcInput.value : null;
+            const compQty = compInput ? compInput.value : null;
+            const remarks = remarkInput ? remarkInput.value : '';
+            
+            console.log(`  Item ${itemIndex + 1} values:`, {
+                endUserId: endUserId,
+                flcQty: flcQty,
+                compQty: compQty,
+                remarks: remarks
+            });
+            
+            if (endUserId && flcQty && compQty && parseInt(flcQty) > 0 && parseInt(compQty) > 0) {
+                entries.push({
+                    end_user_id: endUserId,
+                    flc_qty: parseInt(flcQty),
+                    component_qty: parseInt(compQty),
+                    remarks: remarks
+                });
+                hasValidData = true;
+                console.log(`  ✅ Item ${itemIndex + 1} is valid`);
+            } else {
+                console.log(`  ❌ Item ${itemIndex + 1} is invalid - missing data`);
+            }
+        });
+
+        if (entries.length > 0) {
+            data[parentId] = entries;
+            console.log('Added entries for parent', parentId, ':', entries);
+        } else {
+            console.log('No valid entries for parent', parentId);
+        }
+    });
+
+    console.log('Final dispatch data:', data);
+    
+    const hidden = document.getElementById('dispatch_data');
+    if (hidden) {
+        hidden.value = JSON.stringify(data);
+        console.log('Hidden field set with:', hidden.value);
+        console.log('Hidden field value length:', hidden.value.length);
+    } else {
+        console.error('Hidden field dispatch_data not found!');
+    }
+    
+    return hasValidData;
+    {% else %}
+    // For Supplier, just return true
+    return true;
+    {% endif %}
+}
+
+// Validate form before submission
+function validateForm() {
+    console.log('validateForm() called');
+    
+    {% if role == "Intermediate" %}
+    const dispatchBlocks = document.querySelectorAll('.dispatch-block');
+    let hasValidData = false;
+    
+    console.log('Validating', dispatchBlocks.length, 'dispatch blocks');
+    
+    for (const block of dispatchBlocks) {
+        const parentSelect = block.querySelector('.parent-select');
+        if (!parentSelect || !parentSelect.value) {
+            console.log('Parent dispatch not selected in block');
+            continue;
+        }
+        
+        console.log('Parent selected:', parentSelect.value);
+        
+        const endUsers = block.querySelectorAll('.enduser-item');
+        console.log('Found', endUsers.length, 'end users in block');
+        
+        for (const user of endUsers) {
+            const endUserSelect = user.querySelector('select.end-user-select');
+            const flcInput = user.querySelector('input.flc-input');
+            const compInput = user.querySelector('input.comp-input');
+            
+            console.log('End user validation:', {
+                endUser: endUserSelect ? endUserSelect.value : 'none',
+                flcQty: flcInput ? flcInput.value : 'none',
+                compQty: compInput ? compInput.value : 'none'
+            });
+            
+            if (endUserSelect && endUserSelect.value && 
+                flcInput && flcInput.value && parseInt(flcInput.value) > 0 &&
+                compInput && compInput.value && parseInt(compInput.value) > 0) {
+                hasValidData = true;
+                console.log('✅ Found valid end user data');
+                break;
+            }
+        }
+        
+        if (hasValidData) break;
+    }
+    
+    if (!hasValidData) {
+        alert('Please fill in all required fields:\n- Select a parent dispatch\n- Add at least one end user\n- Enter valid FLC and Component quantities (greater than 0)');
+        return false;
+    }
+    {% endif %}
+    
+    return true;
+}
+
+// Combined form submission handler
+function handleFormSubmit(event) {
+    console.log('=== FORM SUBMISSION STARTED ===');
+    
+    if (!validateForm()) {
+        console.log('Validation failed - preventing submission');
+        event.preventDefault();
+        return false;
+    }
+    
+    console.log('Validation passed - preparing data...');
+    
+    if (!prepareData()) {
+        console.log('Data preparation failed - preventing submission');
+        event.preventDefault();
+        return false;
+    }
+    
+    // Double check that dispatch_data is set for Intermediate
+    {% if role == "Intermediate" %}
+    const hidden = document.getElementById('dispatch_data');
+    if (!hidden || !hidden.value || hidden.value === '{}') {
+        console.error('dispatch_data is empty or not set!');
+        alert('Error: Dispatch data not properly prepared. Please check that all fields are filled correctly.');
+        event.preventDefault();
+        return false;
+    }
+    
+    console.log('dispatch_data confirmed:', hidden.value);
+    {% endif %}
+    
+    console.log('=== FORM SUBMISSION PROCEEDING ===');
+    return true;
+}
+
+// Debug function to check form data
+function debugFormData() {
+    console.log('=== DEBUG FORM DATA ===');
+    console.log('Role:', '{{ role }}');
+    
+    {% if role == "Intermediate" %}
+    const dispatchBlocks = document.querySelectorAll('.dispatch-block');
+    console.log('Dispatch blocks found:', dispatchBlocks.length);
+    
+    dispatchBlocks.forEach((block, index) => {
+        console.log(`Block ${index + 1}:`);
+        
+        const parentSelect = block.querySelector('.parent-select');
+        console.log('  Parent selected:', parentSelect ? parentSelect.value : 'none');
+        
+        const endUsers = block.querySelectorAll('.enduser-item');
+        console.log('  End users:', endUsers.length);
+        
+        endUsers.forEach((user, userIndex) => {
+            const endUserSelect = user.querySelector('select.end-user-select');
+            const flcInput = user.querySelector('input.flc-input');
+            const compInput = user.querySelector('input.comp-input');
+            
+            console.log(`    User ${userIndex + 1}:`, {
+                endUser: endUserSelect ? endUserSelect.value : 'none',
+                flcQty: flcInput ? flcInput.value : 'none',
+                compQty: compInput ? compInput.value : 'none',
+                isValid: endUserSelect && endUserSelect.value && 
+                        flcInput && flcInput.value && parseInt(flcInput.value) > 0 &&
+                        compInput && compInput.value && parseInt(compInput.value) > 0
+            });
+        });
+    });
+
+    // Test prepareData function
+    console.log('=== TESTING prepareData() ===');
+    const testResult = prepareData();
+    console.log('prepareData() returned:', testResult);
+    
+    const hidden = document.getElementById('dispatch_data');
+    console.log('Hidden field after prepareData:', hidden ? hidden.value : 'field not found');
+    {% else %}
+    console.log('Supplier form - checking FLC items...');
+    const flcItems = document.querySelectorAll('.flc-item');
+    console.log('FLC items found:', flcItems.length);
+    
+    flcItems.forEach((item, index) => {
+        const componentSelect = item.querySelector('.component-select');
+        const flcInput = item.querySelector('.flc-input');
+        const compInput = item.querySelector('input[name="component_qty[]"]');
+        
+        console.log(`Item ${index + 1}:`, {
+            component: componentSelect ? componentSelect.value : 'none',
+            flcQty: flcInput ? flcInput.value : 'none',
+            compQty: compInput ? compInput.value : 'none'
+        });
+    });
+    {% endif %}
+    
+    console.log('=== END DEBUG ===');
+}
+
+// Make debug function globally available
+window.debugFormData = debugFormData;
+
+// Show help modal
+function showHelpModal() {
+    const modal = new bootstrap.Modal(document.getElementById('helpModal'));
+    modal.show();
+}
+
+// Show summary preview
+function showSummary() {
+    const summarySection = document.getElementById('summary-section');
+    const summaryContent = document.getElementById('summary-content');
+    
+    let summaryHTML = '';
+    
+    {% if role == "Supplier" %}
+    // Supplier summary
+    const toUser = document.querySelector('select[name="to_user"]');
+    const toUserName = toUser.options[toUser.selectedIndex]?.text || 'Not selected';
+    
+    summaryHTML = `
+        <h6 class="text-dark mb-3">Dispatch to: ${toUserName}</h6>
+        <div class="table-responsive">
+        <table class="table table-sm">
+            <thead class="table-light">
+            <tr>
+                <th>Component</th>
+                <th class="text-center">FLC Qty</th>
+                <th class="text-center">Comp Qty</th>
+                <th>Remarks</th>
+            </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    document.querySelectorAll('.flc-item').forEach((item, index) => {
+        const component = item.querySelector('.component-select');
+        const flcQty = item.querySelector('.flc-input');
+        const compQty = item.querySelector('input[name="component_qty[]"]');
+        const remarks = item.querySelector('input[name="remarks[]"]');
+        
+        summaryHTML += `
+            <tr>
+            <td>${component?.options[component.selectedIndex]?.text.split(' (Stock')[0] || 'Not selected'}</td>
+            <td class="text-center">${flcQty?.value || '0'}</td>
+            <td class="text-center">${compQty?.value || '0'}</td>
+            <td>${remarks?.value || '-'}</td>
+            </tr>
+        `;
+    });
+    
+    summaryHTML += `</tbody></table></div>`;
+    
+    // Add inventory summary for Supplier
+    const totalRequested = Array.from(document.querySelectorAll('.flc-input'))
+        .reduce((sum, input) => sum + (parseInt(input.value) || 0), 0);
+    const remaining = {{ available_flcs }} - totalRequested;
+
+    summaryHTML += `
+        <div class="alert ${remaining < 0 ? 'alert-danger' : remaining === 0 ? 'alert-warning' : 'alert-success'} mt-3">
+        <i class="bi ${remaining < 0 ? 'bi-exclamation-triangle' : 'bi-check-circle'} me-2"></i>
+        <strong>Inventory Summary:</strong> 
+        Requested: ${totalRequested} FLCs | 
+        Available: {{ available_flcs }} FLCs | 
+        Remaining: ${remaining} FLCs
+        ${remaining < 0 ? '<br><small class="mt-1">You need to reduce quantity or add more inventory</small>' : ''}
+        </div>
+    `;
+    
+    {% else %}
+    // Intermediate summary
+    summaryHTML = `<h6 class="text-dark mb-3">Dispatch Summary</h6>`;
+    
+    document.querySelectorAll('.dispatch-block').forEach((block, blockIndex) => {
+        const parentSelect = block.querySelector('.parent-select');
+        const parentText = parentSelect?.options[parentSelect.selectedIndex]?.text || 'Not selected';
+        
+        summaryHTML += `
+        <div class="mb-3">
+            <h6 class="text-primary">${parentText}</h6>
+            <div class="table-responsive">
+            <table class="table table-sm">
+                <thead class="table-light">
+                <tr>
+                    <th>End User</th>
+                    <th class="text-center">FLC Qty</th>
+                    <th class="text-center">Comp Qty</th>
+                    <th>Remarks</th>
+                </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        block.querySelectorAll('.enduser-item').forEach(item => {
+            const endUser = item.querySelector('select.end-user-select');
+            const flcQty = item.querySelector('input.flc-input');
+            const compQty = item.querySelector('input.comp-input');
+            const remarks = item.querySelector('input.remark-input');
+            
+            summaryHTML += `
+                <tr>
+                <td>${endUser?.options[endUser.selectedIndex]?.text || 'Not selected'}</td>
+                <td class="text-center">${flcQty?.value || '0'}</td>
+                <td class="text-center">${compQty?.value || '0'}}</td>
+                <td>${remarks?.value || '-'}</td>
+                </tr>
+            `;
+        });
+        
+        summaryHTML += `</tbody></table></div></div>`;
+    });
+    {% endif %}
+    
+    summaryContent.innerHTML = summaryHTML;
+    summarySection.style.display = 'block';
+    summarySection.scrollIntoView({ behavior: 'smooth' });
 }
 </script>
-{% endblock %}
 
+<style>
+.card {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.btn {
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.form-select, .form-control {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+}
+
+.form-select:focus, .form-control:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Progress Steps */
+.step-indicator {
+  position: relative;
+  z-index: 2;
+}
+
+.step-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  border: 3px solid;
+  transition: all 0.3s ease;
+}
+
+.step-indicator.active .step-icon {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: white;
+}
+
+.step-indicator:not(.active) .step-icon {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.progress-line {
+  height: 4px;
+  background: #e2e8f0;
+  position: relative;
+  top: -35px;
+  border-radius: 2px;
+}
+
+.progress-line.active {
+  background: #2563eb;
+}
+
+/* Animations */
+.animate__fadeIn {
+  animation-duration: 0.5s;
+}
+
+.animate__fadeOut {
+  animation-duration: 0.3s;
+}
+
+/* Badges */
+.badge {
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 20px;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .step-icon {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .progress-line {
+    top: -30px;
+  }
+  
+  .card-body .row > div {
+    margin-bottom: 1rem;
+  }
+}
+</style>
+{% endblock %}
