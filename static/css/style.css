@@ -1,1 +1,76 @@
+/* General body styling */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 0;
+}
 
+/* Card styling for login/signup */
+.card {
+    border-radius: 10px;
+    background-color: #ffffff;
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+
+/* Headings */
+h2, h3, h4 {
+    color: #0d6efd; /* Bootstrap primary color */
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* Table styling */
+table.table {
+    background-color: #fff;
+}
+
+table th {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+table td, table th {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Alert spacing */
+.alert {
+    margin-top: 10px;
+}
+
+/* Links */
+a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Forms */
+input, select {
+    border-radius: 5px;
+}
+
+input:focus, select:focus {
+    box-shadow: 0 0 5px rgba(13, 110, 253, 0.5);
+    border-color: #0d6efd;
+}
+
+/* Container spacing */
+.container {
+    max-width: 900px;
+}
