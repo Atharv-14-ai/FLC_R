@@ -25,11 +25,15 @@ load_dotenv()
 # --- App config ---
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
-# ✅ SECURITY FIX: Use environment variables
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://postgres:1234@localhost:5432/flc"
-)
+# ✅ FIXED: Database URL for Railway
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:1234@localhost:5432/flc"
+
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24).hex())
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -2065,17 +2069,20 @@ def validate_quantity(qty_str, field_name="Quantity"):
 
 # ==================== MAIN EXECUTION ====================
 if __name__ == "__main__":
-    # Check if we're in production
+    # Fix database URL for Railway
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    
+    # Initialize database
+    with app.app_context():
+        init_db()
+    
+    # Railway configuration
+    port = int(os.environ.get("PORT", 5000))
     is_production = os.environ.get("FLASK_ENV") == "production"
-    debug_mode = not is_production
     
-    # Set appropriate logging level
-    if is_production:
-        app.logger.setLevel(logging.WARNING)
-        logging.basicConfig(level=logging.WARNING)
-    else:
-        app.logger.setLevel(logging.DEBUG)
-        logging.basicConfig(level=logging.DEBUG)
-    
+    app.run(host='0.0.0.0', port=port, debug=not is_production)
 
-    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
